@@ -53,7 +53,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { mode, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout } = useAuth();
+  const { signOut } = useAuth();
   const [open, setOpen] = useState(false);
 
   const handleDrawerOpen = () => {
@@ -70,7 +70,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   const handleLogout = () => {
-    logout();
+    signOut();
     navigate('/login');
   };
 

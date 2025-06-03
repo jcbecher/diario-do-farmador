@@ -1,5 +1,6 @@
 import React from 'react';
-import { Box, Typography, Paper, Container } from '@mui/material';
+import { Box, Typography, Container } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 
 interface PageContainerProps {
   children: React.ReactNode;
@@ -8,6 +9,8 @@ interface PageContainerProps {
 }
 
 const PageContainer: React.FC<PageContainerProps> = ({ children, title, action }) => {
+  const theme = useTheme();
+
   return (
     <Box
       sx={{
@@ -15,7 +18,7 @@ const PageContainer: React.FC<PageContainerProps> = ({ children, title, action }
         width: '100%',
         height: '100%',
         minHeight: 'calc(100vh - 64px)', // Altura total menos a altura do AppBar
-        backgroundColor: 'background.default'
+        backgroundColor: theme.palette.background.default,
       }}
     >
       <Container maxWidth="xl" sx={{ mx: 'auto' }}>
@@ -27,7 +30,7 @@ const PageContainer: React.FC<PageContainerProps> = ({ children, title, action }
             mb: 4 
           }}
         >
-          <Typography variant="h4" sx={{ fontWeight: 500 }}>
+          <Typography variant="h4" sx={{ fontWeight: 500, color: theme.palette.text.primary }}>
             {title}
           </Typography>
           {action && (

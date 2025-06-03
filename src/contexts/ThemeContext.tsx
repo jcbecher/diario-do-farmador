@@ -21,7 +21,7 @@ export const useTheme = () => {
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [mode, setMode] = useState<ThemeMode>(() => {
     const savedMode = localStorage.getItem('theme-mode');
-    return (savedMode as ThemeMode) || 'light';
+    return (savedMode as ThemeMode) || 'dark';
   });
 
   useEffect(() => {
@@ -32,14 +32,18 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     palette: {
       mode,
       primary: {
-        main: '#2196f3',
+        main: '#31f034',
       },
       secondary: {
         main: '#f50057',
       },
       background: {
-        default: mode === 'light' ? '#f5f5f5' : '#121212',
+        default: mode === 'light' ? '#ffffff' : '#121212',
         paper: mode === 'light' ? '#ffffff' : '#1e1e1e',
+      },
+      text: {
+        primary: mode === 'light' ? '#000000' : '#ffffff',
+        secondary: mode === 'light' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.7)',
       },
     },
     typography: {
@@ -65,7 +69,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       MuiDrawer: {
         styleOverrides: {
           paper: {
-            backgroundColor: mode === 'light' ? '#ffffff' : '#1e1e1e',
+            backgroundColor: mode === 'light' ? '#ffffff' : '#121212',
+            borderRight: `1px solid ${mode === 'light' ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.12)'}`,
           },
         },
       },
@@ -73,6 +78,22 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         styleOverrides: {
           root: {
             color: mode === 'light' ? 'inherit' : '#31f034'
+          }
+        }
+      },
+      MuiCard: {
+        styleOverrides: {
+          root: {
+            backgroundColor: mode === 'light' ? '#ffffff' : '#1e1e1e',
+            boxShadow: mode === 'light' ? '0px 2px 4px rgba(0, 0, 0, 0.1)' : 'none',
+          }
+        }
+      },
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            backgroundColor: mode === 'light' ? '#ffffff' : '#1e1e1e',
+            boxShadow: mode === 'light' ? '0px 2px 4px rgba(0, 0, 0, 0.1)' : 'none',
           }
         }
       },

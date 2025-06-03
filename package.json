@@ -10,6 +10,7 @@
     "@mui/lab": "^5.0.0-alpha.165",
     "@mui/material": "^5.17.1",
     "@mui/x-date-pickers": "^6.19.5",
+    "@supabase/supabase-js": "^2.49.9",
     "@testing-library/dom": "^9.3.4",
     "@testing-library/jest-dom": "^6.4.2",
     "@testing-library/react": "^14.2.1",
