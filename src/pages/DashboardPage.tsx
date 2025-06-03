@@ -220,7 +220,7 @@ const DashboardPage: React.FC = () => {
               </Typography>
             </CardContent>
           </Card>
-        </Grid>
+      </Grid>
 
         {/* Gráficos */}
         <Grid item xs={12} md={6}>
@@ -247,7 +247,7 @@ const DashboardPage: React.FC = () => {
               </Box>
             </CardContent>
           </Card>
-        </Grid>
+      </Grid>
 
         {/* Listas */}
         <Grid item xs={12} md={6}>

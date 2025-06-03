@@ -167,22 +167,22 @@ const ImportPage: React.FC = () => {
   return (
     <PageContainer title="Import Session">
       <Box sx={{ maxWidth: 'lg', mx: 'auto' }}>
-        <Typography variant="subtitle1" gutterBottom>
-          Cole os dados da sua sessão do Tibia abaixo
-        </Typography>
-        
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
+      <Typography variant="subtitle1" gutterBottom>
+        Cole os dados da sua sessão do Tibia abaixo
+      </Typography>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
 
         <Box sx={{ mt: 2 }}>
-          <TextField
+        <TextField
             fullWidth
-            multiline
-            rows={10}
-            placeholder="Cole aqui o log da sua sessão..."
+          multiline
+          rows={10}
+          placeholder="Cole aqui o log da sua sessão..."
             value={sessionLog}
             onChange={(e) => {
               setSessionLog(e.target.value);
@@ -192,93 +192,93 @@ const ImportPage: React.FC = () => {
                 setPreview(null);
               }
             }}
-            variant="outlined"
-            disabled={loading}
-          />
+          variant="outlined"
+          disabled={loading}
+        />
         </Box>
 
-        {preview && (
-          <>
+      {preview && (
+        <>
             <Typography variant="h5" sx={{ mt: 4, mb: 2 }}>
-              Preview
-            </Typography>
+            Preview
+          </Typography>
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
-                <Card>
+              <Card>
                   <CardContent sx={{ p: 2 }}>
-                    <Typography variant="h6" gutterBottom>
+                  <Typography variant="h6" gutterBottom>
                       Session Details
-                    </Typography>
-                    <Typography>
+                  </Typography>
+                  <Typography>
                       Start: {new Date(preview.start_datetime).toLocaleString()}
-                    </Typography>
-                    <Typography>
+                  </Typography>
+                  <Typography>
                       End: {new Date(preview.end_datetime).toLocaleString()}
-                    </Typography>
-                    <Typography>
+                  </Typography>
+                  <Typography>
                       Duration: {preview.duration_minutes} minutes
-                    </Typography>
-                    <Typography>
+                  </Typography>
+                  <Typography>
                       XP Gain: {preview.total_xp_gain.toLocaleString()}
-                    </Typography>
-                    <Typography>
-                      XP/h: {preview.total_xp_per_hour.toLocaleString()}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
+                  </Typography>
+                  <Typography>
+                    XP/h: {preview.total_xp_per_hour.toLocaleString()}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
               <Grid item xs={12} md={6}>
-                <Card>
+              <Card>
                   <CardContent sx={{ p: 2 }}>
-                    <Typography variant="h6" gutterBottom>
+                  <Typography variant="h6" gutterBottom>
                       Loot Summary
-                    </Typography>
-                    <Typography>
+                  </Typography>
+                  <Typography>
                       Loot Value: {preview.loot_value.toLocaleString()}
-                    </Typography>
-                    <Typography>
-                      Supplies: {preview.supplies_value.toLocaleString()}
-                    </Typography>
-                    <Typography>
+                  </Typography>
+                  <Typography>
+                    Supplies: {preview.supplies_value.toLocaleString()}
+                  </Typography>
+                  <Typography>
                       Balance: {preview.balance.toLocaleString()}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
               {preview.killed_monsters.length > 0 && (
                 <Grid item xs={12}>
-                  <Card>
+              <Card>
                     <CardContent sx={{ p: 2 }}>
-                      <Typography variant="h6" gutterBottom>
+                  <Typography variant="h6" gutterBottom>
                         Killed Monsters
-                      </Typography>
+                  </Typography>
                       <Box sx={{ columnCount: { xs: 1, sm: 2, md: 3 }, columnGap: 2 }}>
-                        {preview.killed_monsters.map((monster, index) => (
+                    {preview.killed_monsters.map((monster, index) => (
                           <Typography key={index} sx={{ mb: 1 }}>
-                            {monster.count}x {monster.name}
+                        {monster.count}x {monster.name}
                           </Typography>
                         ))}
                       </Box>
-                    </CardContent>
-                  </Card>
-                </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
               )}
               {preview.looted_items.length > 0 && (
                 <Grid item xs={12}>
-                  <Card>
+              <Card>
                     <CardContent sx={{ p: 2 }}>
-                      <Typography variant="h6" gutterBottom>
+                  <Typography variant="h6" gutterBottom>
                         Looted Items
-                      </Typography>
+                  </Typography>
                       <Box sx={{ columnCount: { xs: 1, sm: 2, md: 3 }, columnGap: 2 }}>
-                        {preview.looted_items.map((item, index) => (
+                    {preview.looted_items.map((item, index) => (
                           <Typography key={index} sx={{ mb: 1 }}>
-                            {item.count}x {item.name}
+                        {item.count}x {item.name}
                           </Typography>
                         ))}
                       </Box>
-                    </CardContent>
-                  </Card>
+                </CardContent>
+              </Card>
                 </Grid>
               )}
             </Grid>
@@ -286,16 +286,16 @@ const ImportPage: React.FC = () => {
         )}
 
         <Box sx={{ mt: 3 }}>
-          <Button
-            variant="contained"
+            <Button
+              variant="contained"
             color="primary"
-            onClick={handleImport}
+              onClick={handleImport}
             disabled={loading || !preview}
-          >
+            >
             {loading ? <CircularProgress size={24} /> : 'IMPORTAR'}
-          </Button>
-        </Box>
-      </Box>
+            </Button>
+          </Box>
+    </Box>
     </PageContainer>
   );
 };

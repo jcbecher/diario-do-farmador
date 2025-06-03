@@ -23,8 +23,10 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await signIn(email, password);
-      navigate('/');
+      const response = await signIn(email, password);
+      if (response.data.user) {
+        navigate('/');
+      }
     } catch (err) {
       console.error('Login error:', err);
     } finally {
@@ -61,6 +63,7 @@ const LoginPage: React.FC = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 margin="normal"
                 required
+                disabled={loading}
               />
               <TextField
                 fullWidth
@@ -70,6 +73,7 @@ const LoginPage: React.FC = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 margin="normal"
                 required
+                disabled={loading}
               />
               <Button
                 fullWidth
@@ -79,15 +83,16 @@ const LoginPage: React.FC = () => {
                 disabled={loading}
                 sx={{ mt: 2 }}
               >
-                {loading ? 'Loading...' : 'Login'}
+                {loading ? 'Entrando...' : 'Login'}
               </Button>
               <Button
                 fullWidth
                 variant="text"
                 onClick={() => navigate('/signup')}
                 sx={{ mt: 1 }}
+                disabled={loading}
               >
-                Don't have an account? Sign up
+                Não tem uma conta? Cadastre-se
               </Button>
             </form>
           </CardContent>

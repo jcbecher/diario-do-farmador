@@ -9,20 +9,61 @@ import SessionDetailsPage from '../pages/SessionDetailsPage';
 import ImportPage from '../pages/ImportPage';
 import AnalyticsPage from '../pages/AnalyticsPage';
 import ProfilePage from '../pages/ProfilePage';
+import AdminPage from '../pages/AdminPage';
 import Layout from '../components/Layout';
+import { Box, CircularProgress, Typography } from '@mui/material';
 
 interface PrivateRouteProps {
   children: React.ReactNode;
+  requireAdmin?: boolean;
 }
 
-const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
-  const { user, loading } = useAuth();
+const LoadingComponent = () => {
+  const { error } = useAuth();
+  
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        gap: 2
+      }}
+    >
+      <CircularProgress />
+      <Typography variant="body1">
+        Checking authentication...
+      </Typography>
+      {error && (
+        <Typography color="error" variant="body2">
+          Error: {error}
+        </Typography>
+      )}
+    </Box>
+  );
+};
+
+const PrivateRoute: React.FC<PrivateRouteProps> = ({ children, requireAdmin = false }) => {
+  const { user, loading, error } = useAuth();
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <LoadingComponent />;
   }
 
   if (!user) {
+    console.log('No user found, redirecting to login');
+    return <Navigate to="/login" />;
+  }
+
+  if (requireAdmin && !user.is_admin) {
+    console.log('User is not admin, redirecting to home');
+    return <Navigate to="/" />;
+  }
+
+  if (!user.is_active) {
+    console.log('User is not active, redirecting to login');
     return <Navigate to="/login" />;
   }
 
@@ -95,6 +136,14 @@ const AppRoutes: React.FC = () => {
           element={
             <PrivateRoute>
               <ProfilePage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <PrivateRoute requireAdmin>
+              <AdminPage />
             </PrivateRoute>
           }
         />

@@ -200,159 +200,159 @@ const AnalyticsPage: React.FC = () => {
         </Button>
       }
     >
-      <Box sx={{ p: 3 }}>
-        <Typography variant="h4" gutterBottom>
-          Analytics
-        </Typography>
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h4" gutterBottom>
+        Analytics
+      </Typography>
 
-        {/* Filtros */}
-        <Box sx={{ mb: 3, display: 'flex', gap: 2 }}>
-          <FormControl sx={{ minWidth: 120 }}>
-            <InputLabel>Período</InputLabel>
-            <Select value={timeRange} label="Período" onChange={handleTimeRangeChange}>
-              <MenuItem value="7d">Últimos 7 dias</MenuItem>
-              <MenuItem value="30d">Últimos 30 dias</MenuItem>
-              <MenuItem value="90d">Últimos 90 dias</MenuItem>
-              <MenuItem value="all">Todo período</MenuItem>
-            </Select>
-          </FormControl>
+      {/* Filtros */}
+      <Box sx={{ mb: 3, display: 'flex', gap: 2 }}>
+        <FormControl sx={{ minWidth: 120 }}>
+          <InputLabel>Período</InputLabel>
+          <Select value={timeRange} label="Período" onChange={handleTimeRangeChange}>
+            <MenuItem value="7d">Últimos 7 dias</MenuItem>
+            <MenuItem value="30d">Últimos 30 dias</MenuItem>
+            <MenuItem value="90d">Últimos 90 dias</MenuItem>
+            <MenuItem value="all">Todo período</MenuItem>
+          </Select>
+        </FormControl>
 
-          <FormControl sx={{ minWidth: 120 }}>
-            <InputLabel>Métrica</InputLabel>
-            <Select value={metricType} label="Métrica" onChange={handleMetricTypeChange}>
-              <MenuItem value="xp">Experiência</MenuItem>
-              <MenuItem value="profit">Lucro</MenuItem>
-            </Select>
-          </FormControl>
-        </Box>
-
-        <Grid container spacing={3}>
-          {/* Estatísticas de Eficiência */}
-          <Grid xs={12} md={4}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Melhor {metricType === 'xp' ? 'XP/h' : 'Lucro/h'}
-                </Typography>
-                <Typography variant="h4">
-                  {efficiencyStats.bestHour.toLocaleString()}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid xs={12} md={4}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Média {metricType === 'xp' ? 'XP/h' : 'Lucro/h'}
-                </Typography>
-                <Typography variant="h4">
-                  {efficiencyStats.averageHour.toLocaleString()}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid xs={12} md={4}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Pior {metricType === 'xp' ? 'XP/h' : 'Lucro/h'}
-                </Typography>
-                <Typography variant="h4">
-                  {efficiencyStats.worstHour.toLocaleString()}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Gráfico de Tendências */}
-          <Grid xs={12}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Tendências e Média Móvel
-                </Typography>
-                <Box sx={{ height: 400 }}>
-                  <Line 
-                    data={trendData} 
-                    options={{
-                      responsive: true,
-                      plugins: {
-                        legend: { position: 'top' as const },
-                        title: { display: false },
-                      },
-                      scales: {
-                        y: { beginAtZero: true },
-                      },
-                    }} 
-                  />
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Distribuição de Monstros */}
-          <Grid xs={12} md={6}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Distribuição de Monstros
-                </Typography>
-                <Box sx={{ height: 300 }}>
-                  <Pie 
-                    data={monsterDistributionData}
-                    options={{
-                      responsive: true,
-                      plugins: {
-                        legend: { position: 'right' as const },
-                      },
-                    }}
-                  />
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Distribuição de Horários */}
-          <Grid xs={12} md={6}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Distribuição por Horário
-                </Typography>
-                <Box sx={{ height: 300 }}>
-                  <Bar
-                    data={{
-                      labels: ['00-04h', '04-08h', '08-12h', '12-16h', '16-20h', '20-24h'],
-                      datasets: [{
-                        label: 'Sessões',
-                        data: Array(6).fill(0).map((_, i) => 
-                          sessions.filter(s => {
-                            const hour = dayjs(s.start_datetime).hour();
-                            return hour >= i * 4 && hour < (i + 1) * 4;
-                          }).length
-                        ),
-                        backgroundColor: theme.palette.primary.main,
-                      }],
-                    }}
-                    options={{
-                      responsive: true,
-                      plugins: {
-                        legend: { display: false },
-                      },
-                      scales: {
-                        y: { beginAtZero: true },
-                      },
-                    }}
-                  />
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
+        <FormControl sx={{ minWidth: 120 }}>
+          <InputLabel>Métrica</InputLabel>
+          <Select value={metricType} label="Métrica" onChange={handleMetricTypeChange}>
+            <MenuItem value="xp">Experiência</MenuItem>
+            <MenuItem value="profit">Lucro</MenuItem>
+          </Select>
+        </FormControl>
       </Box>
+
+      <Grid container spacing={3}>
+        {/* Estatísticas de Eficiência */}
+        <Grid xs={12} md={4}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Melhor {metricType === 'xp' ? 'XP/h' : 'Lucro/h'}
+              </Typography>
+              <Typography variant="h4">
+                {efficiencyStats.bestHour.toLocaleString()}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid xs={12} md={4}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Média {metricType === 'xp' ? 'XP/h' : 'Lucro/h'}
+              </Typography>
+              <Typography variant="h4">
+                {efficiencyStats.averageHour.toLocaleString()}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid xs={12} md={4}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Pior {metricType === 'xp' ? 'XP/h' : 'Lucro/h'}
+              </Typography>
+              <Typography variant="h4">
+                {efficiencyStats.worstHour.toLocaleString()}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Gráfico de Tendências */}
+        <Grid xs={12}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Tendências e Média Móvel
+              </Typography>
+              <Box sx={{ height: 400 }}>
+                <Line 
+                  data={trendData} 
+                  options={{
+                    responsive: true,
+                    plugins: {
+                      legend: { position: 'top' as const },
+                      title: { display: false },
+                    },
+                    scales: {
+                      y: { beginAtZero: true },
+                    },
+                  }} 
+                />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Distribuição de Monstros */}
+        <Grid xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Distribuição de Monstros
+              </Typography>
+              <Box sx={{ height: 300 }}>
+                <Pie 
+                  data={monsterDistributionData}
+                  options={{
+                    responsive: true,
+                    plugins: {
+                      legend: { position: 'right' as const },
+                    },
+                  }}
+                />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Distribuição de Horários */}
+        <Grid xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Distribuição por Horário
+              </Typography>
+              <Box sx={{ height: 300 }}>
+                <Bar
+                  data={{
+                    labels: ['00-04h', '04-08h', '08-12h', '12-16h', '16-20h', '20-24h'],
+                    datasets: [{
+                      label: 'Sessões',
+                      data: Array(6).fill(0).map((_, i) => 
+                        sessions.filter(s => {
+                          const hour = dayjs(s.start_datetime).hour();
+                          return hour >= i * 4 && hour < (i + 1) * 4;
+                        }).length
+                      ),
+                      backgroundColor: theme.palette.primary.main,
+                    }],
+                  }}
+                  options={{
+                    responsive: true,
+                    plugins: {
+                      legend: { display: false },
+                    },
+                    scales: {
+                      y: { beginAtZero: true },
+                    },
+                  }}
+                />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+    </Box>
     </PageContainer>
   );
 };

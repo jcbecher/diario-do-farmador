@@ -1,23 +1,15 @@
-import React, { useEffect } from 'react';
-import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import React from 'react';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import AppRoutes from './routes';
-
-const AppContent: React.FC = () => {
-  const { mode } = useTheme();
-
-  useEffect(() => {
-    document.body.setAttribute('data-theme', mode);
-  }, [mode]);
-
-  return <AppRoutes />;
-};
+import { CssBaseline } from '@mui/material';
 
 const App: React.FC = () => {
   return (
     <ThemeProvider>
+      <CssBaseline />
       <AuthProvider>
-        <AppContent />
+        <AppRoutes />
       </AuthProvider>
     </ThemeProvider>
   );

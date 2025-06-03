@@ -11,24 +11,28 @@ import {
   Stack,
   Snackbar,
   Alert,
+  Grid,
 } from '@mui/material';
 import { PhotoCamera, Edit, Save } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import { useAuth } from '../contexts/AuthContext';
+import PageContainer from '../components/PageContainer';
 
 const Input = styled('input')({
   display: 'none',
 });
 
+interface Notification {
+  open: boolean;
+  message: string;
+  type: 'success' | 'error';
+}
+
 const ProfilePage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const [avatar, setAvatar] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [notification, setNotification] = useState<{
-    open: boolean;
-    message: string;
-    type: 'success' | 'error';
-  }>({
+  const [notification, setNotification] = useState<Notification>({
     open: false,
     message: '',
     type: 'success',
@@ -71,10 +75,22 @@ const ProfilePage: React.FC = () => {
     }));
   };
 
-  const handleSave = () => {
-    // Aqui você implementaria a lógica para salvar no backend
-    setIsEditing(false);
-    showNotification('Perfil atualizado com sucesso!', 'success');
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateUser({ character_name: formData.character_name });
+      setNotification({
+        open: true,
+        message: 'Profile updated successfully',
+        type: 'success',
+      });
+    } catch (error) {
+      setNotification({
+        open: true,
+        message: 'Error updating profile',
+        type: 'error',
+      });
+    }
   };
 
   const showNotification = (message: string, type: 'success' | 'error') => {
@@ -92,95 +108,48 @@ const ProfilePage: React.FC = () => {
     }));
   };
 
+  if (!user) {
+    return null;
+  }
+
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        Perfil
-      </Typography>
-
-      <Card sx={{ maxWidth: 600, mx: 'auto', mt: 4 }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
-            <Avatar
-              src={avatar || undefined}
-              sx={{
-                width: 120,
-                height: 120,
-                mb: 2,
-                border: theme => `2px solid ${theme.palette.primary.main}`,
-              }}
-            />
-            <label htmlFor="avatar-input">
-              <Input
-                accept="image/*"
-                id="avatar-input"
-                type="file"
-                onChange={handleAvatarChange}
-              />
-              <Button
-                variant="outlined"
-                component="span"
-                startIcon={<PhotoCamera />}
-              >
-                Alterar Avatar
-              </Button>
-            </label>
-          </Box>
-
-          <Stack spacing={3}>
-            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-              <Box sx={{ flexGrow: 1 }}>
-                <TextField
-                  fullWidth
-                  label="Nome do Personagem"
-                  name="character_name"
-                  value={formData.character_name}
-                  onChange={handleInputChange}
-                  disabled={!isEditing}
-                  sx={{ mb: 2 }}
-                />
+    <PageContainer title="Profile">
+      <Grid container spacing={3} justifyContent="center">
+        <Grid item xs={12} md={8} lg={6}>
+          <Card>
+            <CardContent>
+              <Box component="form" onSubmit={handleSubmit}>
+                <Typography variant="h6" gutterBottom>
+                  Account Information
+                </Typography>
                 <TextField
                   fullWidth
                   label="Email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  disabled={!isEditing}
-                  type="email"
+                  value={user.email}
+                  disabled
+                  margin="normal"
                 />
+                <TextField
+                  fullWidth
+                  label="Character Name"
+                  value={formData.character_name}
+                  onChange={(e) => setFormData({ ...formData, character_name: e.target.value })}
+                  margin="normal"
+                  required
+                />
+                <Button
+                  type="submit"
+                  variant="contained"
+                  color="primary"
+                  sx={{ mt: 2 }}
+                >
+                  Save Changes
+                </Button>
               </Box>
-              <Box sx={{ ml: 2 }}>
-                {!isEditing ? (
-                  <IconButton 
-                    color="primary" 
-                    onClick={() => setIsEditing(true)}
-                    sx={{ mt: 1 }}
-                  >
-                    <Edit />
-                  </IconButton>
-                ) : (
-                  <IconButton 
-                    color="primary" 
-                    onClick={handleSave}
-                    sx={{ mt: 1 }}
-                  >
-                    <Save />
-                  </IconButton>
-                )}
-              </Box>
-            </Box>
-
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="body2" color="text.secondary">
-                Membro desde: {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Última atualização: {user?.updated_at ? new Date(user.updated_at).toLocaleDateString() : 'N/A'}
-              </Typography>
-            </Box>
-          </Stack>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
       <Snackbar
         open={notification.open}
@@ -196,7 +165,7 @@ const ProfilePage: React.FC = () => {
           {notification.message}
         </Alert>
       </Snackbar>
-    </Box>
+    </PageContainer>
   );
 };
 

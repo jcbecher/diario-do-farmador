@@ -30,6 +30,7 @@ import {
   AddBox,
   Brightness4,
   Brightness7,
+  AdminPanelSettings,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -40,20 +41,28 @@ interface LayoutProps {
 
 const drawerWidth = 240;
 
-const menuItems = [
-  { text: 'Dashboard', icon: <Dashboard />, path: '/' },
-  { text: 'Import Session', icon: <AddBox />, path: '/import' },
-  { text: 'Sessions', icon: <CalendarMonth />, path: '/sessions' },
-  { text: 'Analytics', icon: <Analytics />, path: '/analytics' },
-  { text: 'Profile', icon: <Person />, path: '/profile' },
-];
+const getMenuItems = (isAdmin: boolean) => {
+  const items = [
+    { text: 'Dashboard', icon: <Dashboard />, path: '/' },
+    { text: 'Import Session', icon: <AddBox />, path: '/import' },
+    { text: 'Sessions', icon: <CalendarMonth />, path: '/sessions' },
+    { text: 'Analytics', icon: <Analytics />, path: '/analytics' },
+    { text: 'Profile', icon: <Person />, path: '/profile' },
+  ];
+
+  if (isAdmin) {
+    items.push({ text: 'Admin', icon: <AdminPanelSettings />, path: '/admin' });
+  }
+
+  return items;
+};
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const muiTheme = useMuiTheme();
   const { mode, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const [open, setOpen] = useState(false);
 
   const handleDrawerOpen = () => {
@@ -73,6 +82,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     signOut();
     navigate('/login');
   };
+
+  const menuItems = getMenuItems(user?.is_admin || false);
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -175,12 +186,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <List>
           <ListItem disablePadding sx={{ display: 'block' }}>
             <ListItemButton
+              onClick={handleLogout}
               sx={{
                 minHeight: 48,
                 justifyContent: open ? 'initial' : 'center',
                 px: 2.5,
               }}
-              onClick={handleLogout}
             >
               <ListItemIcon
                 sx={{
@@ -192,24 +203,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <Logout />
               </ListItemIcon>
               <ListItemText 
-                primary="Sair" 
+                primary="Logout" 
                 sx={{ opacity: open ? 1 : 0 }} 
               />
             </ListItemButton>
           </ListItem>
         </List>
       </Drawer>
-
       <Box
         component="main"
         sx={{
           flexGrow: 1,
           p: 3,
           width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
-          mt: '64px',
         }}
       >
+        <DrawerHeader />
         {children}
       </Box>
     </Box>
