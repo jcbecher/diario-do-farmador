@@ -26,86 +26,206 @@ interface ParserStrategy {
 
 // Parser para o formato atual
 class StandardFormatParser implements ParserStrategy {
+  private numberFormat: 'format1' | 'format2' | 'unknown' = 'unknown';
+
   canParse(text: string): boolean {
     return text.includes('Session data:');
   }
 
-  // Na classe StandardFormatParser, modifique o método parse
+  private detectNumberFormat(text: string): 'format1' | 'format2' | 'unknown' {
+    const numericKeywords = ["Raw XP Gain", "XP Gain", "XP/h", "Raw XP/h", "Loot", "Supplies", "Balance", "Damage", "Healing"];
+    for (const keyword of numericKeywords) {
+        const escapedKeyword = keyword.replace(/[.*+?^${}()|[\\\]]/g, '\\$&');
+        const regex = new RegExp(`${escapedKeyword}:\\s*([\\d.,]+)`);
+        const match = text.match(regex);
+
+        if (match && match[1]) {
+            const sampleNumber = match[1];
+            const hasDot = sampleNumber.includes('.');
+            const hasComma = sampleNumber.includes(',');
+
+            if (hasDot && hasComma) {
+                if (sampleNumber.lastIndexOf('.') > sampleNumber.lastIndexOf(',')) {
+                    return 'format1';
+                } else {
+                    return 'format2';
+                }
+            } else if (hasComma) {
+                return 'format1';
+            } else if (hasDot) {
+                return 'format2';
+            }
+        }
+    }
+    console.warn('[detectNumberFormat] Formato numérico não pôde ser determinado. Usando \'unknown\'.');
+    return 'unknown';
+  }
+
   parse(text: string): SessionDataExtract {
+    this.numberFormat = this.detectNumberFormat(text);
+    console.log(`[TextParser] Formato numérico detectado: ${this.numberFormat}`);
     const result: SessionDataExtract = {};
     
-    // Extrair datas - padrão já corrigido
     let dateMatch = text.match(/From (.*?) to (.*?) Session:/);
     if (!dateMatch) {
-      // Formato atual
-      dateMatch = text.match(/Session data: From (.*?) to (.*?)(?:\n|$)/);
+      dateMatch = text.match(/Session data: From (.*?) to (.*?)(?:\n|$)/m);
     }
     
-    if (dateMatch) {
-      result.start_datetime = new Date(dateMatch[1]);
-      result.end_datetime = new Date(dateMatch[2]);
+    if (dateMatch && dateMatch[1] && dateMatch[2]) {
+      try {
+        result.start_datetime = new Date(dateMatch[1].replace(/, /g, ' '));
+        result.end_datetime = new Date(dateMatch[2].replace(/, /g, ' '));
+      } catch (e) {
+        console.error('[TextParser] Erro ao parsear datas:', e, 'Datas originais:', dateMatch[1], dateMatch[2]);
+      }
     }
     
-    // Extrair duração
     const durationMatch = text.match(/Session: ([\d:]+h)/);
-    if (durationMatch) {
+    if (durationMatch && durationMatch[1]) {
       result.duration_minutes = this.parseDuration(durationMatch[1]);
     }
     
-    // Extrair XP - ajustar para usar pontos como separadores
-    const xpMatch = text.match(/Raw XP Gain: ([\d\.]+)[\s\n]+XP Gain: ([\d\.]+)/);
-    if (xpMatch) {
+    const xpMatch = text.match(/Raw XP Gain: ([\d.,]+)[\s\S]*?XP Gain: ([\d.,]+)/m);
+    if (xpMatch && xpMatch[1] && xpMatch[2]) {
       result.raw_xp_gain = this.parseNumber(xpMatch[1]);
       result.total_xp_gain = this.parseNumber(xpMatch[2]);
     }
     
-    // Extrair XP por hora - ajustar para usar pontos como separadores
-    const xpHourMatch = text.match(/XP\/h: ([\d\.]+)[\s\n]+Raw XP\/h: ([\d\.]+)/);
-    if (xpHourMatch) {
+    let xpHourMatch = text.match(/XP\/h: ([\d.,]+)[\s\S]*?Raw XP\/h: ([\d.,]+)/m);
+    if (xpHourMatch && xpHourMatch[1] && xpHourMatch[2]) {
       result.total_xp_per_hour = this.parseNumber(xpHourMatch[1]);
       result.raw_xp_per_hour = this.parseNumber(xpHourMatch[2]);
+    } else {
+      xpHourMatch = text.match(/Raw XP\/h: ([\d.,]+)[\s\S]*?XP\/h: ([\d.,]+)/m);
+      if (xpHourMatch && xpHourMatch[1] && xpHourMatch[2]) {
+        result.raw_xp_per_hour = this.parseNumber(xpHourMatch[1]);
+        result.total_xp_per_hour = this.parseNumber(xpHourMatch[2]);
+      }
     }
-    
-    // Extrair informações de loot - ajustar para usar pontos como separadores
-    const lootMatch = text.match(/Loot: ([\d\.]+)[\s\n]+Supplies: ([\d\.]+)[\s\n]+Balance: ([\d\.]+)/);
-    if (lootMatch) {
+        
+    const lootMatch = text.match(/Loot: ([\d.,]+)[\s\S]*?Supplies: ([\d.,]+)[\s\S]*?Balance: ([\d.,]+)/m);
+    if (lootMatch && lootMatch[1] && lootMatch[2] && lootMatch[3]) {
       result.loot_value = this.parseNumber(lootMatch[1]);
       result.supplies_value = this.parseNumber(lootMatch[2]);
       result.balance = this.parseNumber(lootMatch[3]);
     }
     
-    // Extrair informações de dano - ajustar para usar pontos como separadores
-    const damageMatch = text.match(/Damage: ([\d\.]+)[\s\n]+Damage\/h: ([\d\.]+)/);
-    if (damageMatch) {
+    const damageMatch = text.match(/Damage: ([\d.,]+)[\s\S]*?Damage\/h: ([\d.,]+)/m);
+    if (damageMatch && damageMatch[1] && damageMatch[2]) {
       result.damage_dealt = this.parseNumber(damageMatch[1]);
       result.damage_per_hour = this.parseNumber(damageMatch[2]);
     }
     
-    // Extrair informações de cura - ajustar para usar pontos como separadores
-    const healingMatch = text.match(/Healing: ([\d\.]+)[\s\n]+Healing\/h: ([\d\.]+)/);
-    if (healingMatch) {
+    const healingMatch = text.match(/Healing: ([\d.,]+)[\s\S]*?Healing\/h: ([\d.,]+)/m);
+    if (healingMatch && healingMatch[1] && healingMatch[2]) {
       result.healing_done = this.parseNumber(healingMatch[1]);
       result.healing_per_hour = this.parseNumber(healingMatch[2]);
     }
     
-    // Extrair monstros mortos - ajustar para o novo formato com quebras de linha
-    const killedMonstersSection = text.match(/Killed Monsters:[\s\S]*?(?=Looted Items:|$)/);
-    if (killedMonstersSection) {
-      result.killed_monsters = this.parseKilledMonsters(killedMonstersSection[0]);
+    const commonStopKeywords = [
+      'Session:',
+      'From ',
+      'XP Gain:',
+      'Raw XP Gain:',
+      'XP/h:',
+      'Raw XP/h:',
+      'Supplies:',
+      'Balance:',
+      'Damage:',
+      'Damage/h:',
+      'Healing:',
+      'Healing/h:'
+    ];
+
+    // For Killed Monsters, stop at Looted Items section, other common headers at line start, or end of string.
+    // Temporarily removing blank line stop condition for wider capture.
+    const kmLookaheadStopPatterns = [
+      ...commonStopKeywords.map(k => `(?:^${k.replace(/[.*+?^${}()|[\\]]/g, '\\$&')})`),
+      '(?:^(?:Looted Items|Items Looted|Itens Coletados))'
+    ].join('|');
+    // Switching to greedy match for the main content capture
+    const killedMonstersRegex = new RegExp(`(?:Killed Monsters|Monsters Killed|Monstros Mortos):\\s*\\n?([\\s\\S]*)(?=${kmLookaheadStopPatterns}|$)`, 'im');
+    const killedMonstersMatch = text.match(killedMonstersRegex);
+    console.log('[TextParser] killedMonstersRegex used (greedy, no blank line stop):', killedMonstersRegex.source);
+    console.log('[TextParser] killedMonstersMatch (greedy, no blank line stop):', killedMonstersMatch);
+    if (killedMonstersMatch && killedMonstersMatch[1]) {
+      console.log('[TextParser] Bloco de texto para parseKilledMonsters (raw - greedy, no blank line stop):', JSON.stringify(killedMonstersMatch[1]));
+      result.killed_monsters = this.parseKilledMonsters(killedMonstersMatch[1].trim());
+    } else {
+      console.log('[TextParser] Nenhum match para Killed Monsters com (greedy, no blank line stop).');
+      result.killed_monsters = [];
     }
     
-    // Extrair itens saqueados - ajustar para o novo formato com quebras de linha
-    const lootedItemsSection = text.match(/Looted Items:[\s\S]*$/);
-    if (lootedItemsSection) {
-      result.looted_items = this.parseLootedItems(lootedItemsSection[0]);
+    // For Looted Items, stop at other common headers at line start, or end of string.
+    // Temporarily removing blank line stop condition for wider capture.
+    const liLookaheadStopKeywords = commonStopKeywords.filter(k => !k.toLowerCase().startsWith('loot'));
+    const liLookaheadStopPatterns = [
+      ...liLookaheadStopKeywords.map(k => `(?:^${k.replace(/[.*+?^${}()|[\\]]/g, '\\$&')})`)
+    ].join('|');
+    // Switching to greedy match for the main content capture
+    const lootedItemsRegex = new RegExp(`(?:Looted Items|Items Looted|Itens Coletados):\\s*\\n?([\\s\\S]*)(?=${liLookaheadStopPatterns}|$)`, 'im');
+    const lootedItemsMatch = text.match(lootedItemsRegex);
+    console.log('[TextParser] lootedItemsRegex used (greedy, no blank line stop):', lootedItemsRegex.source);
+    console.log('[TextParser] lootedItemsMatch (greedy, no blank line stop):', lootedItemsMatch);
+    if (lootedItemsMatch && lootedItemsMatch[1]) {
+      console.log('[TextParser] Bloco de texto para parseLootedItems (raw - greedy, no blank line stop):', JSON.stringify(lootedItemsMatch[1]));
+      result.looted_items = this.parseLootedItems(lootedItemsMatch[1].trim());
+    } else {
+      console.log('[TextParser] Nenhum match para Looted Items com (greedy, no blank line stop).');
+      result.looted_items = [];
     }
-    
+    console.log('[TextParser] Resultado final do parse (após greedy, no blank line stop):', result);
     return result;
   }
   
   private parseNumber(str: string): number {
-    // Substituir pontos por nada (remover separadores de milhar)
-    return parseInt(str.replace(/\./g, ''));
+    let cleanedStr = str.trim();
+
+    if (!cleanedStr.match(/[\d]/)) {
+        console.warn(`[TextParser] String '${str}' não parece conter dígitos após trim. Retornando NaN.`);
+        return NaN;
+    }
+
+    if (this.numberFormat === 'format1') { 
+        cleanedStr = cleanedStr.replace(/,/g, ''); 
+    } else if (this.numberFormat === 'format2') { 
+        cleanedStr = cleanedStr.replace(/\./g, '');
+        cleanedStr = cleanedStr.replace(/,/g, '.'); 
+    } else { 
+        const hasDot = cleanedStr.includes('.');
+        const hasComma = cleanedStr.includes(',');
+
+        if (hasDot && hasComma) {
+            if (cleanedStr.lastIndexOf('.') > cleanedStr.lastIndexOf(',')) { 
+                cleanedStr = cleanedStr.replace(/,/g, '');
+            } else { 
+                cleanedStr = cleanedStr.replace(/\./g, '');
+                cleanedStr = cleanedStr.replace(/,/g, '.');
+            }
+        } else if (hasComma) { 
+            if (cleanedStr.split(',').length - 1 === 1 && cleanedStr.match(/,\d{1,2}$/)) {
+                 cleanedStr = cleanedStr.replace(/,/g, '.'); 
+            } else { 
+                 cleanedStr = cleanedStr.replace(/,/g, ''); 
+            }
+        } else if (hasDot) { 
+            const dotParts = cleanedStr.split('.');
+            if (dotParts.length > 2) {
+                cleanedStr = dotParts.join('');
+            } else if (dotParts.length === 2) { 
+                if (dotParts[1].length === 3 && dotParts[0].length > 0) { 
+                     cleanedStr = dotParts.join('');
+                }
+            }
+        }
+    }
+    
+    const num = parseFloat(cleanedStr);
+    if (isNaN(num)) {
+        console.warn(`[TextParser] Falha ao converter string '${str}' (limpa: '${cleanedStr}') para número. Formato detectado: ${this.numberFormat}`);
+        return 0; 
+    }
+    return num;
   }
   
   private parseDuration(duration: string): number {
@@ -113,51 +233,61 @@ class StandardFormatParser implements ParserStrategy {
     return hours * 60 + minutes;
   }
   
-  private parseKilledMonsters(text: string): KilledMonster[] {
-    // Remover o cabeçalho "Killed Monsters:"
-    const cleanText = text.replace(/Killed Monsters:/, '').trim();
-    
-    // Dividir por linhas e remover linhas vazias
-    const lines = cleanText.split('\n').map(line => line.trim()).filter(line => line);
-    
+  private parseKilledMonsters(monstersText: string): KilledMonster[] {
+    console.log('[TextParser] parseKilledMonsters recebido (após trim inicial):', JSON.stringify(monstersText));
+    const lines = monstersText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    console.log('[TextParser] Linhas de monstros (após split por \n e trim):', lines);
     const result: KilledMonster[] = [];
-    
     for (const line of lines) {
-      // Formato esperado: "3x Cliff Strider"
-      const match = line.match(/(\d+)x\s+(.+)/);
-      if (match) {
-        const count = parseInt(match[1]);
-        const name = match[2].trim();
-        if (!isNaN(count) && name) {
-          result.push({ count, name });
+      // Dividir cada linha por vírgula para lidar com múltiplos monstros na mesma linha
+      const monsterEntries = line.split(',').map(entry => entry.trim()).filter(entry => entry.length > 0);
+      console.log(`[TextParser] Entradas de monstros da linha '${line}' (após split por vírgula):`, monsterEntries);
+      for (const entry of monsterEntries) {
+        const match = entry.match(/(\d+)x\s+(.+)/);
+        console.log(`[TextParser] Entrada do monstro: '${entry}', Match:`, match);
+        if (match && match[1] && match[2]) {
+          const count = parseInt(match[1], 10);
+          const name = match[2].trim();
+          if (!isNaN(count) && name) {
+            result.push({ count, name });
+          } else {
+            console.warn(`[TextParser] Monstro ignorado devido a contagem inválida ou nome vazio: count=${count}, name='${name}'`);
+          }
+        } else {
+          console.warn(`[TextParser] Nenhum match para a entrada de monstro: '${entry}'`);
         }
       }
     }
-    
+    console.log('[TextParser] Monstros parseados:', result);
     return result;
   }
   
-  private parseLootedItems(text: string): LootedItem[] {
-    // Remover o cabeçalho "Looted Items:"
-    const cleanText = text.replace(/Looted Items:/, '').trim();
-    
-    // Dividir por linhas e remover linhas vazias
-    const lines = cleanText.split('\n').map(line => line.trim()).filter(line => line);
-    
+  private parseLootedItems(itemsText: string): LootedItem[] {
+    console.log('[TextParser] parseLootedItems recebido (após trim inicial):', JSON.stringify(itemsText));
+    const lines = itemsText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    console.log('[TextParser] Linhas de itens (após split por \n e trim):', lines);
     const result: LootedItem[] = [];
-    
     for (const line of lines) {
-      // Formato esperado: "1x brown crystal splinter"
-      const match = line.match(/(\d+)x\s+(.+)/);
-      if (match) {
-        const count = parseInt(match[1]);
-        const name = match[2].trim();
-        if (!isNaN(count) && name) {
-          result.push({ count, name });
+      // Dividir cada linha por vírgula para lidar com múltiplos itens na mesma linha
+      const itemEntries = line.split(',').map(entry => entry.trim()).filter(entry => entry.length > 0);
+      console.log(`[TextParser] Entradas de itens da linha '${line}' (após split por vírgula):`, itemEntries);
+      for (const entry of itemEntries) {
+        const match = entry.match(/(\d+)x\s+(.+)/);
+        console.log(`[TextParser] Entrada do item: '${entry}', Match:`, match);
+        if (match && match[1] && match[2]) {
+          const count = parseInt(match[1], 10);
+          const name = match[2].trim();
+          if (!isNaN(count) && name) {
+            result.push({ count, name });
+          } else {
+            console.warn(`[TextParser] Item ignorado devido a contagem inválida ou nome vazio: count=${count}, name='${name}'`);
+          }
+        } else {
+          console.warn(`[TextParser] Nenhum match para a entrada de item: '${entry}'`);
         }
       }
     }
-    
+    console.log('[TextParser] Itens parseados:', result);
     return result;
   }
 }

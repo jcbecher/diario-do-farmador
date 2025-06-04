@@ -299,9 +299,9 @@ const AnalyticsPage: React.FC = () => {
         </FormControl>
       </Box>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={4}>
         {/* Estatísticas de Eficiência */}
-        <Grid xs={12} md={4}>
+        <Grid item xs={12} md={4}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -314,7 +314,7 @@ const AnalyticsPage: React.FC = () => {
           </Card>
         </Grid>
 
-        <Grid xs={12} md={4}>
+        <Grid item xs={12} md={4}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -327,7 +327,7 @@ const AnalyticsPage: React.FC = () => {
           </Card>
         </Grid>
 
-        <Grid xs={12} md={4}>
+        <Grid item xs={12} md={4}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -341,7 +341,7 @@ const AnalyticsPage: React.FC = () => {
         </Grid>
 
         {/* Gráfico de Tendências */}
-        <Grid xs={12}>
+        <Grid item xs={12}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -367,7 +367,7 @@ const AnalyticsPage: React.FC = () => {
         </Grid>
 
         {/* Distribuição de Monstros */}
-        <Grid xs={12} md={6}>
+        <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -389,7 +389,7 @@ const AnalyticsPage: React.FC = () => {
         </Grid>
 
         {/* Distribuição de Horários */}
-        <Grid xs={12} md={6}>
+        <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>

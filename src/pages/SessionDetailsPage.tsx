@@ -53,9 +53,9 @@ const SessionDetailsPage: React.FC = () => {
         </Typography>
       </Box>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={4}>
         {/* Informações Básicas */}
-        <Grid xs={12} md={6}>
+        <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -75,7 +75,7 @@ const SessionDetailsPage: React.FC = () => {
         </Grid>
 
         {/* Experiência */}
-        <Grid xs={12} md={6}>
+        <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -98,7 +98,7 @@ const SessionDetailsPage: React.FC = () => {
         </Grid>
 
         {/* Loot e Supplies */}
-        <Grid xs={12} md={6}>
+        <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -118,7 +118,7 @@ const SessionDetailsPage: React.FC = () => {
         </Grid>
 
         {/* Dano e Cura */}
-        <Grid xs={12} md={6}>
+        <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -141,7 +141,7 @@ const SessionDetailsPage: React.FC = () => {
         </Grid>
 
         {/* Monstros Mortos */}
-        <Grid xs={12}>
+        <Grid item xs={12}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -150,7 +150,7 @@ const SessionDetailsPage: React.FC = () => {
               <Box sx={{ 
                 display: 'grid', 
                 gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' },
-                gap: 2 
+                gap: 3 
               }}>
                 {session.killed_monsters.map((monster, index) => (
                   <Typography key={index}>
@@ -163,7 +163,7 @@ const SessionDetailsPage: React.FC = () => {
         </Grid>
 
         {/* Items Coletados */}
-        <Grid xs={12}>
+        <Grid item xs={12}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -172,7 +172,7 @@ const SessionDetailsPage: React.FC = () => {
               <Box sx={{ 
                 display: 'grid', 
                 gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' },
-                gap: 2 
+                gap: 3 
               }}>
                 {session.looted_items.map((item, index) => (
                   <Typography key={index}>

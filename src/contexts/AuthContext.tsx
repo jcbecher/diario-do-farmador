@@ -211,10 +211,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setError(null);
       setLoading(true);
-      await supabase.auth.signUp({ email, password });
+      console.log('🚀 Tentando cadastro:', email);
+      const response = await supabase.auth.signUp({ email, password });
+      setLoading(false);
+
+      if (response.error) {
+        console.error('❌ Erro no cadastro (Supabase):', response.error);
+        setError(response.error.message === 'User already registered' 
+          ? 'Este email já está cadastrado. Tente fazer login.' 
+          : `Erro ao cadastrar: ${response.error.message}`);
+        throw response.error;
+      }
+
+      console.log('✅ Cadastro iniciado (Supabase):', response.data);
+      // No return statement here, so it implicitly returns Promise<void>
+
     } catch (err) {
-      if (mountedRef.current) {
-        setError(err instanceof Error ? err.message : 'An error occurred during sign up');
+      console.error('❌ Erro na função de cadastro (catch geral):', err);
+      // Ensure error state is set if not already by response.error check
+      if (mountedRef.current && !error) { 
+        const currentError = err instanceof Error ? err.message : 'Erro ao cadastrar';
+        // Check if setError is already trying to set this exact message to avoid loops if setError itself causes a re-render that re-runs this.
+        if (error !== currentError) {
+            setError(currentError);
+        }
+      }
+      // Ensure loading is false if an error is thrown before setLoading(false) is reached
+      if (mountedRef.current && loading) {
         setLoading(false);
       }
       throw err;
