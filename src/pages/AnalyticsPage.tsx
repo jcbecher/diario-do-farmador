@@ -32,7 +32,7 @@ import { Session } from '../types';
 import dayjs from 'dayjs';
 import { PictureAsPdf as PdfIcon } from '@mui/icons-material';
 import PageContainer from '../components/PageContainer';
-import { generateAnalyticsPDF } from '../services/pdfService';
+import { generateAnalyticsPDF, AnalyticsSummary } from '../services/pdfService';
 
 // Registrar componentes do Chart.js
 ChartJS.register(
@@ -182,8 +182,81 @@ const AnalyticsPage: React.FC = () => {
 
   const efficiencyStats = calculateEfficiencyStats();
 
+  // Helper function to format minutes into hh:mm string
+  const formatMinutesToHMS = (minutes: number): string => {
+    const h = Math.floor(minutes / 60);
+    const m = Math.floor(minutes % 60);
+    return `${h}h ${m}m`;
+  };
+
+  const prepareAnalyticsSummary = (): AnalyticsSummary => {
+    if (sessions.length === 0) {
+      return {
+        totalSessions: 0,
+        totalXP: 0,
+        totalBalance: 0,
+        averageXPPerHour: 0,
+        bestXPPerHour: 0,
+        worstXPPerHour: 0,
+        totalPlayTime: '0h 0m',
+        mostKilledMonsters: [],
+        mostValuableItems: [],
+      };
+    }
+
+    const totalXP = sessions.reduce((sum, s) => sum + s.total_xp_gain, 0);
+    const totalBalance = sessions.reduce((sum, s) => sum + s.balance, 0);
+    const totalDurationMinutes = sessions.reduce((sum, s) => sum + s.duration_minutes, 0);
+
+    const xpPerHourValues = sessions.map(s => s.total_xp_per_hour);
+    const averageXPPerHour = xpPerHourValues.reduce((sum, val) => sum + val, 0) / xpPerHourValues.length;
+    const bestXPPerHour = Math.max(...xpPerHourValues);
+    const worstXPPerHour = Math.min(...xpPerHourValues);
+
+    // Most Killed Monsters
+    const monsterCounts = new Map<string, number>();
+    sessions.forEach(session => {
+      (session.killed_monsters || []).forEach(monster => {
+        const current = monsterCounts.get(monster.name) || 0;
+        monsterCounts.set(monster.name, current + monster.count);
+      });
+    });
+    const mostKilledMonsters = Array.from(monsterCounts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    // Most Valuable Items
+    const itemValues = new Map<string, number>();
+    sessions.forEach(session => {
+      (session.looted_items || []).forEach(item => {
+        const current = itemValues.get(item.name) || 0;
+        // Ensure item.value is a number, default to 0 if not present or not a number
+        const value = typeof item.value === 'number' ? item.value : 0;
+        itemValues.set(item.name, current + value);
+      });
+    });
+    const mostValuableItems = Array.from(itemValues.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+    
+    return {
+      totalSessions: sessions.length,
+      totalXP,
+      totalBalance,
+      averageXPPerHour: isFinite(averageXPPerHour) ? averageXPPerHour : 0,
+      bestXPPerHour: isFinite(bestXPPerHour) ? bestXPPerHour : 0,
+      worstXPPerHour: isFinite(worstXPPerHour) ? worstXPPerHour : 0,
+      totalPlayTime: formatMinutesToHMS(totalDurationMinutes),
+      mostKilledMonsters,
+      mostValuableItems,
+    };
+  };
+
   const handleExportPDF = () => {
-    generateAnalyticsPDF(sessions);
+    const summary = prepareAnalyticsSummary();
+    generateAnalyticsPDF(sessions, summary);
   };
 
   return (
@@ -202,7 +275,7 @@ const AnalyticsPage: React.FC = () => {
     >
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom>
-        Analytics
+        
       </Typography>
 
       {/* Filtros */}

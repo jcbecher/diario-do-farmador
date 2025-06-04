@@ -11,7 +11,7 @@ interface jsPDFWithAutoTable extends jsPDF {
   };
 }
 
-interface AnalyticsSummary {
+export interface AnalyticsSummary {
   totalSessions: number;
   totalXP: number;
   totalBalance: number;
@@ -23,93 +23,89 @@ interface AnalyticsSummary {
   mostValuableItems: Array<{ name: string; value: number }>;
 }
 
-export const generateAnalyticsPDF = (sessions: Session[]) => {
-  const doc = new jsPDF();
-  const today = dayjs();
-  const thirtyDaysAgo = today.subtract(30, 'day');
+// Helper functions (deduplicated)
+const formatMinutes = (minutes: number): string => {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${hours}h ${mins}m`;
+};
 
-  // Filter sessions from last 30 days
-  const recentSessions = sessions.filter(session => 
-    dayjs(session.start_datetime).isAfter(thirtyDaysAgo)
-  );
+const getMostKilledMonsters = (sessions: Session[]): Array<{ name: string; count: number }> => {
+  const monsterCounts = new Map<string, number>();
+  sessions.forEach(session => {
+    (session.killed_monsters || []).forEach(monster => {
+      const current = monsterCounts.get(monster.name) || 0;
+      monsterCounts.set(monster.name, current + monster.count);
+    });
+  });
+  return Array.from(monsterCounts.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+};
 
-  // Calculate statistics
-  const summary: AnalyticsSummary = {
-    totalSessions: recentSessions.length,
-    totalXP: recentSessions.reduce((sum, session) => sum + session.total_xp_gain, 0),
-    totalBalance: recentSessions.reduce((sum, session) => sum + session.balance, 0),
-    averageXPPerHour: recentSessions.length > 0 
-      ? recentSessions.reduce((sum, session) => sum + session.total_xp_per_hour, 0) / recentSessions.length 
-      : 0,
-    bestXPPerHour: recentSessions.length > 0 
-      ? Math.max(...recentSessions.map(s => s.total_xp_per_hour))
-      : 0,
-    worstXPPerHour: recentSessions.length > 0 
-      ? Math.min(...recentSessions.map(s => s.total_xp_per_hour))
-      : 0,
-    totalPlayTime: formatMinutes(recentSessions.reduce((sum, session) => sum + session.duration_minutes, 0)),
-    mostKilledMonsters: getMostKilledMonsters(recentSessions),
-    mostValuableItems: getMostValuableItems(recentSessions),
-  };
+const getMostValuableItems = (sessions: Session[]): Array<{ name: string; value: number }> => {
+  const itemValues = new Map<string, number>();
+  sessions.forEach(session => {
+    (session.looted_items || []).forEach(item => {
+      const current = itemValues.get(item.name) || 0;
+      itemValues.set(item.name, current + (item.value || 0));
+    });
+  });
+  return Array.from(itemValues.entries())
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 5);
+};
 
-  // Add header
-  doc.setFontSize(20);
-  doc.text('Relatório de Análise - Últimos 30 Dias', 14, 20);
-  doc.setFontSize(12);
-  doc.text(`Gerado em: ${today.format('DD/MM/YYYY HH:mm')}`, 14, 30);
+export const generateAnalyticsPDF = (sessions: Session[], summary: AnalyticsSummary) => {
+  const doc = new jsPDF() as jsPDFWithAutoTable;
 
-  // Add general summary
-  doc.setFontSize(16);
-  doc.text('Resumo Geral', 14, 45);
-  doc.setFontSize(12);
+  doc.setFontSize(18);
+  doc.text('Relatório de Analytics - Últimos 30 Dias', 14, 22);
+  doc.setFontSize(11);
+  doc.setTextColor(100);
 
-  const summaryData = [
+  // General Stats
+  const generalData = [
     ['Total de Sessões', summary.totalSessions.toString()],
-    ['Tempo Total de Jogo', summary.totalPlayTime],
-    ['XP Total', summary.totalXP.toLocaleString()],
-    ['Média de XP/h', Math.round(summary.averageXPPerHour).toLocaleString()],
-    ['Melhor XP/h', summary.bestXPPerHour.toLocaleString()],
-    ['Pior XP/h', summary.worstXPPerHour.toLocaleString()],
+    ['Total XP Ganhos', summary.totalXP.toLocaleString()],
     ['Balanço Total', summary.totalBalance.toLocaleString()],
+    ['Tempo Total de Jogo', summary.totalPlayTime],
+    ['Média de XP/Hora', summary.averageXPPerHour.toLocaleString()],
+    ['Melhor XP/Hora', summary.bestXPPerHour.toLocaleString()],
+    ['Pior XP/Hora', summary.worstXPPerHour.toLocaleString()],
   ];
 
   autoTable(doc, {
-    startY: 50,
-    head: [['Métrica', 'Valor']],
-    body: summaryData,
+    startY: 30,
+    head: [['Estatística', 'Valor']],
+    body: generalData,
     theme: 'striped',
-    headStyles: { fillColor: [49, 240, 52] },
+    headStyles: { fillColor: [49, 240, 52] }, // Green color
   });
 
-  // Add top 5 monsters
-  doc.setFontSize(16);
-  doc.text('Top 5 Monstros Mais Mortos', 14, (doc as any).lastAutoTable.finalY + 20);
-
-  const monsterData = summary.mostKilledMonsters.map(monster => [
-    monster.name,
-    monster.count.toString(),
-  ]);
+  // Most Killed Monsters
+  const monsterData = summary.mostKilledMonsters.length > 0 ?
+    summary.mostKilledMonsters.map(monster => [monster.name, monster.count.toString()]) :
+    [['Nenhum monstro registrado', '']];
 
   autoTable(doc, {
-    startY: (doc as any).lastAutoTable.finalY + 25,
-    head: [['Monstro', 'Quantidade']],
+    startY: doc.lastAutoTable.finalY + 10,
+    head: [['Monstro Mais Caçado', 'Quantidade']],
     body: monsterData,
     theme: 'striped',
     headStyles: { fillColor: [49, 240, 52] },
   });
-
-  // Add top 5 items
-  doc.setFontSize(16);
-  doc.text('Top 5 Items Mais Valiosos', 14, (doc as any).lastAutoTable.finalY + 20);
-
-  const itemData = summary.mostValuableItems.map(item => [
-    item.name,
-    item.value.toLocaleString(),
-  ]);
+  
+  // Most Valuable Items
+  const itemData = summary.mostValuableItems.length > 0 ?
+    summary.mostValuableItems.map(item => [item.name, item.value.toLocaleString()]) :
+    [['Nenhum item registrado', '']];
 
   autoTable(doc, {
-    startY: (doc as any).lastAutoTable.finalY + 25,
-    head: [['Item', 'Valor']],
+    startY: doc.lastAutoTable.finalY + 10,
+    head: [['Item Mais Valioso', 'Valor Total']],
     body: itemData,
     theme: 'striped',
     headStyles: { fillColor: [49, 240, 52] },
@@ -119,41 +115,5 @@ export const generateAnalyticsPDF = (sessions: Session[]) => {
   doc.save('analytics-report.pdf');
 };
 
-// Helper functions
-const formatMinutes = (minutes: number): string => {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${hours}h ${mins}m`;
-};
-
-const getMostKilledMonsters = (sessions: Session[]) => {
-  const monsterCounts = new Map<string, number>();
-  
-  sessions.forEach(session => {
-    session.killed_monsters.forEach(monster => {
-      const current = monsterCounts.get(monster.name) || 0;
-      monsterCounts.set(monster.name, current + monster.count);
-    });
-  });
-
-  return Array.from(monsterCounts.entries())
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
-};
-
-const getMostValuableItems = (sessions: Session[]) => {
-  const itemValues = new Map<string, number>();
-  
-  sessions.forEach(session => {
-    session.looted_items.forEach(item => {
-      const current = itemValues.get(item.name) || 0;
-      itemValues.set(item.name, current + (item.value || 0));
-    });
-  });
-
-  return Array.from(itemValues.entries())
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 5);
-}; 
+// Export helper functions if they need to be used elsewhere, otherwise keep them unexported
+// export { getMostKilledMonsters, getMostValuableItems, formatMinutes };

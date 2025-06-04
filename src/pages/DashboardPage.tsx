@@ -40,6 +40,7 @@ ChartJS.register(
 const DashboardPage: React.FC = () => {
   const theme = useTheme();
   const [sessions, setSessions] = useState<Session[]>([]);
+  // No estado inicial
   const [stats, setStats] = useState<SessionStats>({
     total_sessions: 0,
     total_duration_minutes: 0,
@@ -50,7 +51,8 @@ const DashboardPage: React.FC = () => {
     total_balance: 0,
     total_monsters_killed: 0,
     most_killed_monsters: [],
-    most_valuable_items: [],
+    // Remover a linha abaixo
+    // most_valuable_items: [],
   });
 
   useEffect(() => {
@@ -107,7 +109,8 @@ const DashboardPage: React.FC = () => {
         total_balance: totalLoot - totalSupplies,
         total_monsters_killed: Array.from(monsterCounts.values()).reduce((a, b) => a + b, 0),
         most_killed_monsters: sortedMonsters,
-        most_valuable_items: sortedItems as LootedItem[],
+        // Remover a linha abaixo
+        // most_valuable_items: sortedItems as LootedItem[],
       });
     }
   }, []);
@@ -254,7 +257,7 @@ const DashboardPage: React.FC = () => {
           <Card>
             <CardContent sx={{ p: 2 }}>
               <Typography variant="h6" gutterBottom>
-                Top 5 Monstros Mais Mortos
+                Criaturas Abatidas
               </Typography>
               {stats.most_killed_monsters.map((monster, index) => (
                 <Box key={monster.name} sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -266,9 +269,11 @@ const DashboardPage: React.FC = () => {
           </Card>
         </Grid>
 
+        {/* Remova todo este bloco Grid abaixo */}
+        {/* 
         <Grid item xs={12} md={6}>
           <Card>
-            <CardContent sx={{ p: 2 }}>
+            <CardContent>
               <Typography variant="h6" gutterBottom>
                 Top 5 Items Mais Valiosos
               </Typography>
@@ -280,10 +285,11 @@ const DashboardPage: React.FC = () => {
               ))}
             </CardContent>
           </Card>
-        </Grid>
+        </Grid> 
+        */}
       </Grid>
     </PageContainer>
   );
 };
 
-export default DashboardPage; 
+export default DashboardPage;

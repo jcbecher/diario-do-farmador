@@ -143,7 +143,7 @@ const SessionListPage: React.FC = () => {
 
   return (
     <PageContainer 
-      title="Sessions Calendar"
+      title="Calendário de Sessões"
       action={
         <Button
           variant="contained"
@@ -198,11 +198,11 @@ const SessionListPage: React.FC = () => {
           <Card elevation={2} sx={{ height: '100%' }}>
             <CardContent sx={{ p: 2 }}>
               <Typography variant="h6" gutterBottom sx={{ fontWeight: 500, color: 'text.primary' }}>
-                Today's Summary
+                Resumo Diário
               </Typography>
               <Box sx={{ mt: 2 }}>
                 <Typography variant="body1" sx={{ mb: 1 }}>
-                  Sessions: {selectedDaySessions.length}
+                  Sessões: {selectedDaySessions.length}
                 </Typography>
                 <Typography variant="body1" sx={{ mb: 1 }}>
                   Total XP: {selectedDaySessions.reduce((sum, session) => sum + session.total_xp_gain, 0).toLocaleString()}

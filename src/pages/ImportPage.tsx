@@ -15,6 +15,7 @@ import Grid from '@mui/material/Grid';
 import { sessionService } from '../services/sessionService';
 import { Session, KilledMonster, LootedItem } from '../types';
 import PageContainer from '../components/PageContainer';
+import { textParserService } from '../services/textParserService'; // Importar o serviço de parser
 
 interface ImportPreview {
   start_datetime: string;
@@ -42,84 +43,50 @@ const ImportPage: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [preview, setPreview] = useState<ImportPreview | null>(null);
 
-  const parseNumber = (str: string): number => {
-    return parseInt(str.replace(/,/g, ''));
-  };
-
-  const parseDuration = (duration: string): number => {
-    const [hours, minutes] = duration.replace('h', '').split(':').map(Number);
-    return hours * 60 + minutes;
-  };
-
-  const parseKilledMonsters = (text: string): Array<{ name: string; count: number }> => {
-    const monsters = text.split(' ');
-    const result = [];
-    
-    for (let i = 0; i < monsters.length; i += 2) {
-      if (monsters[i] && monsters[i + 1]) {
-        const count = parseInt(monsters[i]);
-        const name = monsters[i + 1];
-        if (!isNaN(count)) {
-          result.push({ count, name });
-        }
-      }
-    }
-    
-    return result;
-  };
-
-  const parseLootedItems = (text: string): Array<{ name: string; count: number }> => {
-    const items = text.split(',').map(item => item.trim());
-    return items.map(item => {
-      const [countStr, ...nameParts] = item.split('x ');
-      const count = parseInt(countStr);
-      const name = nameParts.join('x ').trim();
-      return { count, name };
-    }).filter(item => !isNaN(item.count) && item.name);
-  };
+  // Estas funções não são mais necessárias, pois estão no serviço de parser
+  // Você pode removê-las ou mantê-las como fallback
 
   const validateData = async (data: string) => {
     try {
-      if (!data.startsWith('Session data:')) {
-        throw new Error('Formato inválido. Por favor, cole o log completo da sessão do Tibia.');
-      }
-
-      // Extrair informações usando regex
-      const dateMatch = data.match(/From (.*?) to (.*?) Session:/);
-      const durationMatch = data.match(/Session: ([\d:]+h)/);
-      const xpMatch = data.match(/Raw XP Gain: ([\d,]+) XP Gain: ([\d,]+)/);
-      const xpHourMatch = data.match(/Raw XP\/h: ([\d,]+) XP\/h: ([\d,]+)/);
-      const lootMatch = data.match(/Loot: ([\d,]+) Supplies: ([\d,]+) Balance: ([\d,]+)/);
-      const damageMatch = data.match(/Damage: ([\d,]+) Damage\/h: ([\d,]+)/);
-      const healingMatch = data.match(/Healing: ([\d,]+) Healing\/h: ([\d,]+)/);
+      // Tentar usar o parser específico primeiro
+      let sessionData = textParserService.parseSessionData(data);
       
-      const killedMonstersMatch = data.match(/Killed Monsters: (.*?) Looted Items:/);
-      const lootedItemsMatch = data.match(/Looted Items: (.*?)$/);
-
-      if (!dateMatch || !durationMatch || !xpMatch || !xpHourMatch || !lootMatch || 
-          !damageMatch || !healingMatch || !killedMonstersMatch || !lootedItemsMatch) {
-        throw new Error('Dados incompletos ou formato inválido. Certifique-se de colar o log completo.');
+      // Se nenhum parser específico funcionar, tentar extrair qualquer dado disponível
+      if (!sessionData) {
+        sessionData = textParserService.extractAnyAvailableData(data);
       }
-
+      
+      // Verificar se temos dados suficientes para criar uma sessão válida
+      if (!sessionData.start_datetime || !sessionData.end_datetime) {
+        throw new Error('Não foi possível identificar as datas de início e fim da sessão.');
+      }
+      
+      // Calcular campos ausentes quando possível
+      if (sessionData.start_datetime && sessionData.end_datetime && !sessionData.duration_minutes) {
+        const diffMs = sessionData.end_datetime.getTime() - sessionData.start_datetime.getTime();
+        sessionData.duration_minutes = Math.round(diffMs / (1000 * 60));
+      }
+      
+      // Criar o preview com os dados disponíveis
       const preview: ImportPreview = {
-        start_datetime: new Date(dateMatch[1]).toISOString(),
-        end_datetime: new Date(dateMatch[2]).toISOString(),
-        duration_minutes: parseDuration(durationMatch[1]),
-        raw_xp_gain: parseNumber(xpMatch[1]),
-        total_xp_gain: parseNumber(xpMatch[2]),
-        raw_xp_per_hour: parseNumber(xpHourMatch[1]),
-        total_xp_per_hour: parseNumber(xpHourMatch[2]),
-        loot_value: parseNumber(lootMatch[1]),
-        supplies_value: parseNumber(lootMatch[2]),
-        balance: parseNumber(lootMatch[3]),
-        damage_dealt: parseNumber(damageMatch[1]),
-        damage_per_hour: parseNumber(damageMatch[2]),
-        healing_done: parseNumber(healingMatch[1]),
-        healing_per_hour: parseNumber(healingMatch[2]),
-        killed_monsters: parseKilledMonsters(killedMonstersMatch[1]),
-        looted_items: parseLootedItems(lootedItemsMatch[1])
+        start_datetime: sessionData.start_datetime.toISOString(),
+        end_datetime: sessionData.end_datetime.toISOString(),
+        duration_minutes: sessionData.duration_minutes || 0,
+        raw_xp_gain: sessionData.raw_xp_gain || 0,
+        total_xp_gain: sessionData.total_xp_gain || 0,
+        raw_xp_per_hour: sessionData.raw_xp_per_hour || 0,
+        total_xp_per_hour: sessionData.total_xp_per_hour || 0,
+        loot_value: sessionData.loot_value || 0,
+        supplies_value: sessionData.supplies_value || 0,
+        balance: sessionData.balance || 0,
+        damage_dealt: sessionData.damage_dealt || 0,
+        damage_per_hour: sessionData.damage_per_hour || 0,
+        healing_done: sessionData.healing_done || 0,
+        healing_per_hour: sessionData.healing_per_hour || 0,
+        killed_monsters: sessionData.killed_monsters || [],
+        looted_items: sessionData.looted_items || []
       };
-
+      
       setPreview(preview);
       setError('');
     } catch (err) {
@@ -129,6 +96,7 @@ const ImportPage: React.FC = () => {
   };
 
   const handleImport = async () => {
+    // O resto do código permanece o mesmo
     if (!preview) {
       setError('Por favor, insira dados válidos da sessão');
       return;
@@ -164,8 +132,9 @@ const ImportPage: React.FC = () => {
     }
   };
 
+  // O resto do componente permanece o mesmo
   return (
-    <PageContainer title="Import Session">
+    <PageContainer title="Import">
       <Box sx={{ maxWidth: 'lg', mx: 'auto' }}>
       <Typography variant="subtitle1" gutterBottom>
         Cole os dados da sua sessão do Tibia abaixo
@@ -300,4 +269,4 @@ const ImportPage: React.FC = () => {
   );
 };
 
-export default ImportPage; 
+export default ImportPage;
