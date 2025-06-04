@@ -103,6 +103,7 @@ const ImportPage: React.FC = () => {
     }
 
     setLoading(true);
+    setError(''); // Limpar erros anteriores
     try {
       const sessionData: Omit<Session, 'id' | 'user_id' | 'created_at'> = {
         start_datetime: new Date(preview.start_datetime),
@@ -123,10 +124,20 @@ const ImportPage: React.FC = () => {
         looted_items: preview.looted_items
       };
 
-      const newSession = sessionService.addSession(sessionData);
-      navigate('/sessions');
+      const newSession = await sessionService.addSession(sessionData);
+      if (newSession) {
+        navigate('/sessions'); // Navegar somente se a sessão for adicionada com sucesso
+      } else {
+        // Isso pode acontecer se o addSession retornar null (embora no nosso caso ele lance um erro ou retorne a sessão)
+        setError('Falha ao adicionar a sessão. Nenhum dado retornado.');
+      }
     } catch (err) {
-      setError('Erro ao importar os dados da sessão');
+      console.error('[ImportPage] Error importing session:', err);
+      if (err instanceof Error) {
+        setError(`Erro ao importar os dados da sessão: ${err.message}`);
+      } else {
+        setError('Erro desconhecido ao importar os dados da sessão');
+      }
     } finally {
       setLoading(false);
     }

@@ -9,51 +9,92 @@ import {
   IconButton,
   Divider,
   Button,
+  CircularProgress,
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import { ArrowBack } from '@mui/icons-material';
 import { sessionService } from '../services/sessionService';
 import { Session } from '../types';
 import dayjs from 'dayjs';
+import PageContainer from '../components/PageContainer';
 
 const SessionDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (id) {
-      const loadedSession = sessionService.getSessionById(id);
-      if (loadedSession) {
-        setSession(loadedSession);
+    const fetchSessionDetails = async () => {
+      if (id) {
+        setIsLoading(true);
+        setError(null);
+        try {
+          const loadedSession = await sessionService.getSessionById(id);
+          setSession(loadedSession);
+        } catch (err) {
+          console.error("[SessionDetailsPage] Error fetching session details:", err);
+          setError("Falha ao carregar os detalhes da sessão.");
+          setSession(null);
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        setError("ID da sessão não fornecido.");
+        setIsLoading(false);
+        setSession(null);
       }
-    }
-  }, [id]);
+    };
 
-  if (!session) {
-    return (
-      <Box sx={{ p: 3 }}>
-        <Typography>Sessão não encontrada</Typography>
-      </Box>
-    );
-  }
+    fetchSessionDetails();
+  }, [id]);
 
   const handleBack = () => {
     navigate('/sessions');
   };
 
+  if (isLoading) {
+    return (
+      <PageContainer title="Detalhes da Sessão">
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+          <CircularProgress />
+          <Typography sx={{ ml: 2 }}>Carregando detalhes da sessão...</Typography>
+        </Box>
+      </PageContainer>
+    );
+  }
+
+  if (error) {
+    return (
+      <PageContainer title="Erro">
+        <Typography color="error">{error}</Typography>
+        <Button onClick={handleBack} sx={{ mt: 2 }}>Voltar</Button>
+      </PageContainer>
+    );
+  }
+
+  if (!session) {
+    return (
+      <PageContainer title="Sessão Não Encontrada">
+        <Typography>Sessão não encontrada.</Typography>
+        <Button onClick={handleBack} sx={{ mt: 2 }}>Voltar para Lista</Button>
+      </PageContainer>
+    );
+  }
+
   return (
-    <Box sx={{ p: 3 }}>
+    <PageContainer title={`Detalhes da Sessão: ${dayjs(session.start_datetime).format('DD/MM/YY HH:mm')}`}>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-        <IconButton onClick={handleBack} sx={{ mr: 2 }}>
+        <IconButton onClick={handleBack} sx={{ mr: 1 }}>
           <ArrowBack />
         </IconButton>
-        <Typography variant="h4">
-          Session Details
+        <Typography variant="h5">
+          Detalhes da Sessão
         </Typography>
       </Box>
 
-      <Grid container spacing={4}>
+      <Grid container spacing={3}>
         {/* Informações Básicas */}
         <Grid item xs={12} md={6}>
           <Card>
@@ -150,9 +191,9 @@ const SessionDetailsPage: React.FC = () => {
               <Box sx={{ 
                 display: 'grid', 
                 gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' },
-                gap: 3 
+                gap: 2 
               }}>
-                {session.killed_monsters.map((monster, index) => (
+                {(session.killed_monsters || []).map((monster, index) => (
                   <Typography key={index}>
                     {monster.count}x {monster.name}
                   </Typography>
@@ -172,9 +213,9 @@ const SessionDetailsPage: React.FC = () => {
               <Box sx={{ 
                 display: 'grid', 
                 gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' },
-                gap: 3 
+                gap: 2 
               }}>
-                {session.looted_items.map((item, index) => (
+                {(session.looted_items || []).map((item, index) => (
                   <Typography key={index}>
                     {item.count}x {item.name}
                   </Typography>
@@ -193,7 +234,7 @@ const SessionDetailsPage: React.FC = () => {
           Voltar para Lista
         </Button>
       </Box>
-    </Box>
+    </PageContainer>
   );
 };
 

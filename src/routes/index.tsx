@@ -75,15 +75,15 @@ const AppRoutes: React.FC = () => {
 
   return (
     <BrowserRouter>
-      <Routes>
+    <Routes>
         {/* Rotas públicas */}
-        <Route
+      <Route
           path="/login"
-          element={
+        element={
             user ? <Navigate to="/" replace /> : <LoginPage />
-          }
-        />
-        <Route
+        }
+      />
+      <Route
           path="/signup"
           element={
             user ? <Navigate to="/" replace /> : <SignUpPage />
@@ -93,25 +93,25 @@ const AppRoutes: React.FC = () => {
         {/* Rotas privadas */}
         <Route
           path="/"
-          element={
+        element={
             <PrivateRoute>
               <DashboardPage />
             </PrivateRoute>
-          }
-        />
-        <Route
-          path="/sessions"
-          element={
+        }
+      />
+      <Route
+        path="/sessions"
+        element={
             <PrivateRoute>
-              <SessionListPage />
+            <SessionListPage />
             </PrivateRoute>
-          }
-        />
-        <Route
-          path="/sessions/:id"
-          element={
+        }
+      />
+      <Route
+        path="/sessions/:id"
+        element={
             <PrivateRoute>
-              <SessionDetailsPage />
+            <SessionDetailsPage />
             </PrivateRoute>
           }
         />
@@ -121,21 +121,21 @@ const AppRoutes: React.FC = () => {
             <PrivateRoute>
               <ImportPage />
             </PrivateRoute>
-          }
-        />
-        <Route
-          path="/analytics"
-          element={
+        }
+      />
+      <Route
+        path="/analytics"
+        element={
             <PrivateRoute>
-              <AnalyticsPage />
+            <AnalyticsPage />
             </PrivateRoute>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
+        }
+      />
+      <Route
+        path="/profile"
+        element={
             <PrivateRoute>
-              <ProfilePage />
+            <ProfilePage />
             </PrivateRoute>
           }
         />
@@ -145,12 +145,12 @@ const AppRoutes: React.FC = () => {
             <PrivateRoute requireAdmin>
               <AdminPage />
             </PrivateRoute>
-          }
-        />
+        }
+      />
 
         {/* Rota de fallback */}
         <Route path="*" element={<Navigate to={user ? "/" : "/login"} replace />} />
-      </Routes>
+    </Routes>
     </BrowserRouter>
   );
 };

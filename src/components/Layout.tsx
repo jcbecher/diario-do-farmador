@@ -43,12 +43,12 @@ const drawerWidth = 240;
 
 const getMenuItems = (isAdmin: boolean) => {
   const items = [
-    { text: 'Dashboard', icon: <Dashboard />, path: '/' },
+  { text: 'Dashboard', icon: <Dashboard />, path: '/' },
     { text: 'Import Session', icon: <AddBox />, path: '/import' },
     { text: 'Sessions', icon: <CalendarMonth />, path: '/sessions' },
-    { text: 'Analytics', icon: <Analytics />, path: '/analytics' },
+  { text: 'Analytics', icon: <Analytics />, path: '/analytics' },
     { text: 'Profile', icon: <Person />, path: '/profile' },
-  ];
+];
 
   if (isAdmin) {
     items.push({ text: 'Admin', icon: <AdminPanelSettings />, path: '/admin' });

@@ -121,7 +121,7 @@ const ProfilePage: React.FC = () => {
               <Box component="form" onSubmit={handleSubmit}>
                 <Typography variant="h6" gutterBottom>
                   Account Information
-                </Typography>
+      </Typography>
                 <TextField
                   fullWidth
                   label="Email"
@@ -140,14 +140,14 @@ const ProfilePage: React.FC = () => {
                 <Button
                   type="submit"
                   variant="contained"
-                  color="primary"
+                    color="primary" 
                   sx={{ mt: 2 }}
-                >
+                  >
                   Save Changes
                 </Button>
               </Box>
-            </CardContent>
-          </Card>
+        </CardContent>
+      </Card>
         </Grid>
       </Grid>
 

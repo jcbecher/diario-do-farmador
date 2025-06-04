@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -40,7 +40,8 @@ ChartJS.register(
 const DashboardPage: React.FC = () => {
   const theme = useTheme();
   const [sessions, setSessions] = useState<Session[]>([]);
-  // No estado inicial
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<SessionStats>({
     total_sessions: 0,
     total_duration_minutes: 0,
@@ -53,52 +54,26 @@ const DashboardPage: React.FC = () => {
     most_killed_monsters: [],
   });
 
-  useEffect(() => {
-    const loadedSessions = sessionService.getAllSessions();
-    console.log('[DashboardPage] Loaded sessions:', JSON.parse(JSON.stringify(loadedSessions)));
-    setSessions(loadedSessions);
-
-    // Calcular estatísticas
+  const calculateStatsAndSetData = useCallback((loadedSessions: Session[]) => {
     if (loadedSessions.length > 0) {
       const totalXP = loadedSessions.reduce((sum, session) => sum + session.total_xp_gain, 0);
       const totalMinutes = loadedSessions.reduce((sum, session) => sum + session.duration_minutes, 0);
       const totalLoot = loadedSessions.reduce((sum, session) => sum + session.loot_value, 0);
       const totalSupplies = loadedSessions.reduce((sum, session) => sum + session.supplies_value, 0);
 
-      // Contagem de monstros
       const monsterCounts = new Map<string, number>();
       loadedSessions.forEach((session, sessionIndex) => {
-        console.log(`[DashboardPage] Session ${sessionIndex} killed_monsters:`, JSON.parse(JSON.stringify(session.killed_monsters)));
-        session.killed_monsters.forEach(monster => {
-          const current = monsterCounts.get(monster.name) || 0;
-          monsterCounts.set(monster.name, current + monster.count);
-        });
+        if (session.killed_monsters) {
+          session.killed_monsters.forEach(monster => {
+            const current = monsterCounts.get(monster.name) || 0;
+            monsterCounts.set(monster.name, current + monster.count);
+          });
+        }
       });
-      console.log('[DashboardPage] Monster counts map:', Object.fromEntries(monsterCounts));
 
-      // Ordenar monstros por quantidade
       const sortedMonsters = Array.from(monsterCounts.entries())
         .map(([name, count]) => ({ name, count }))
         .sort((a, b) => b.count - a.count)
-        .slice(0, 5);
-      console.log('[DashboardPage] Sorted monsters (top 5):', sortedMonsters);
-
-      // Contagem de items
-      const itemCounts = new Map<string, { count: number; value: number }>();
-      loadedSessions.forEach(session => {
-        session.looted_items.forEach(item => {
-          const current = itemCounts.get(item.name) || { count: 0, value: 0 };
-          itemCounts.set(item.name, {
-            count: current.count + item.count,
-            value: current.value + (item.value || 0),
-          });
-        });
-      });
-
-      // Ordenar items por valor
-      const sortedItems = Array.from(itemCounts.entries())
-        .map(([name, data]) => ({ name, count: data.count, value: data.value }))
-        .sort((a, b) => b.value - a.value)
         .slice(0, 5);
 
       setStats({
@@ -112,8 +87,41 @@ const DashboardPage: React.FC = () => {
         total_monsters_killed: Array.from(monsterCounts.values()).reduce((a, b) => a + b, 0),
         most_killed_monsters: sortedMonsters,
       });
+    } else {
+      setStats({
+        total_sessions: 0,
+        total_duration_minutes: 0,
+        total_xp_gain: 0,
+        average_xp_per_hour: 0,
+        total_loot_value: 0,
+        total_supplies_value: 0,
+        total_balance: 0,
+        total_monsters_killed: 0,
+        most_killed_monsters: [],
+      });
     }
   }, []);
+
+  useEffect(() => {
+    const fetchSessions = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const loadedSessions = await sessionService.getAllSessions();
+        setSessions(loadedSessions);
+        calculateStatsAndSetData(loadedSessions);
+      } catch (err) {
+        console.error("[DashboardPage] Error loading sessions:", err);
+        setError("Falha ao carregar os dados do dashboard.");
+        setSessions([]);
+        calculateStatsAndSetData([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSessions();
+  }, [calculateStatsAndSetData]);
 
   // Preparar dados para o gráfico de XP
   const xpChartData = {
@@ -169,6 +177,18 @@ const DashboardPage: React.FC = () => {
     },
   };
 
+  if (isLoading) {
+    return <PageContainer title="Dashboard"><Typography>Carregando dados do dashboard...</Typography></PageContainer>;
+  }
+
+  if (error) {
+    return <PageContainer title="Dashboard"><Typography color="error">{error}</Typography></PageContainer>;
+  }
+
+  if (sessions.length === 0) {
+    return <PageContainer title="Dashboard"><Typography>Nenhuma sessão encontrada. Importe sua primeira sessão!</Typography></PageContainer>;
+  }
+
   return (
     <PageContainer title="Dashboard">
       <Grid container spacing={2}>
@@ -223,7 +243,7 @@ const DashboardPage: React.FC = () => {
               </Typography>
             </CardContent>
           </Card>
-      </Grid>
+        </Grid>
 
         {/* Gráficos */}
         <Grid item xs={12} md={6}>
@@ -250,7 +270,7 @@ const DashboardPage: React.FC = () => {
               </Box>
             </CardContent>
           </Card>
-      </Grid>
+        </Grid>
 
         {/* Listas */}
         <Grid item xs={12} md={6}>
@@ -268,25 +288,6 @@ const DashboardPage: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-
-        {/* Remova todo este bloco Grid abaixo */}
-        {/* 
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Top 5 Items Mais Valiosos
-              </Typography>
-              {stats.most_valuable_items.map((item, index) => (
-                <Box key={item.name} sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography>{item.name}</Typography>
-                  <Typography>{item.value?.toLocaleString()}</Typography>
-                </Box>
-              ))}
-            </CardContent>
-          </Card>
-        </Grid> 
-        */}
       </Grid>
     </PageContainer>
   );

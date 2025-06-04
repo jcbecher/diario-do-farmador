@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -49,36 +49,56 @@ ChartJS.register(
 
 const AnalyticsPage: React.FC = () => {
   const theme = useTheme();
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [timeRange, setTimeRange] = useState<string>('7d');
+  const [allRawSessions, setAllRawSessions] = useState<Session[]>([]);
+  const [displaySessions, setDisplaySessions] = useState<Session[]>([]);
+  const [timeRange, setTimeRange] = useState<string>('30d');
   const [metricType, setMetricType] = useState<string>('xp');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadedSessions = sessionService.getAllSessions();
-    
-    // Filtrar sessões baseado no intervalo de tempo selecionado
-    const filteredSessions = filterSessionsByTimeRange(loadedSessions, timeRange);
-    setSessions(filteredSessions);
-  }, [timeRange]);
+    const fetchAllData = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const loadedSessions = await sessionService.getAllSessions();
+        setAllRawSessions(loadedSessions);
+      } catch (err) {
+        console.error("[AnalyticsPage] Error loading sessions:", err);
+        setError("Falha ao carregar os dados de análise.");
+        setAllRawSessions([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchAllData();
+  }, []);
 
-  const filterSessionsByTimeRange = (sessions: Session[], range: string): Session[] => {
+  const filterSessionsByTimeRange = useCallback((sessionsToFilter: Session[], range: string): Session[] => {
     const now = dayjs();
     const ranges: { [key: string]: number } = {
       '7d': 7,
       '30d': 30,
       '90d': 90,
-      'all': 0,
+      'all': Infinity,
     };
 
-    if (range === 'all') return sessions;
+    if (range === 'all') return sessionsToFilter;
 
     const daysToSubtract = ranges[range];
-    const startDate = now.subtract(daysToSubtract, 'day');
+    if (daysToSubtract === undefined) return sessionsToFilter;
+    
+    const startDate = now.subtract(daysToSubtract, 'day').startOf('day');
 
-    return sessions.filter(session => 
+    return sessionsToFilter.filter(session => 
       dayjs(session.start_datetime).isAfter(startDate)
     );
-  };
+  }, []);
+
+  useEffect(() => {
+    const filtered = filterSessionsByTimeRange(allRawSessions, timeRange);
+    setDisplaySessions(filtered);
+  }, [allRawSessions, timeRange, filterSessionsByTimeRange]);
 
   const handleTimeRangeChange = (event: SelectChangeEvent) => {
     setTimeRange(event.target.value);
@@ -99,15 +119,15 @@ const AnalyticsPage: React.FC = () => {
 
   // Preparar dados para o gráfico de tendências
   const trendData = {
-    labels: sessions.map(session => dayjs(session.start_datetime).format('DD/MM')),
+    labels: displaySessions.map(session => dayjs(session.start_datetime).format('DD/MM')),
     datasets: [
       {
         label: metricType === 'xp' ? 'XP/h' : 'Lucro/h',
-        data: sessions.map(session => 
+        data: displaySessions.map(session => 
           metricType === 'xp' 
             ? session.total_xp_per_hour 
-            : (session.balance / session.duration_minutes) * 60
-        ),
+            : (session.balance / (session.duration_minutes > 0 ? session.duration_minutes : 1)) * 60
+        ).filter(value => isFinite(value)),
         borderColor: theme.palette.primary.main,
         backgroundColor: theme.palette.primary.main,
         tension: 0.4,
@@ -115,11 +135,11 @@ const AnalyticsPage: React.FC = () => {
       {
         label: 'Média Móvel (3 sessões)',
         data: calculateMovingAverage(
-          sessions.map(session => 
+          displaySessions.map(session => 
             metricType === 'xp' 
               ? session.total_xp_per_hour 
-              : (session.balance / session.duration_minutes) * 60
-          ),
+              : (session.balance / (session.duration_minutes > 0 ? session.duration_minutes : 1)) * 60
+          ).filter(value => isFinite(value)),
           3
         ),
         borderColor: theme.palette.secondary.main,
@@ -133,7 +153,7 @@ const AnalyticsPage: React.FC = () => {
   // Preparar dados para distribuição de monstros
   const monsterDistributionData = {
     labels: Object.entries(
-      sessions.flatMap(s => s.killed_monsters)
+      displaySessions.flatMap(s => s.killed_monsters || [])
         .reduce((acc: { [key: string]: number }, monster) => {
           acc[monster.name] = (acc[monster.name] || 0) + monster.count;
           return acc;
@@ -144,7 +164,7 @@ const AnalyticsPage: React.FC = () => {
       .map(([name]) => name),
     datasets: [{
       data: Object.entries(
-        sessions.flatMap(s => s.killed_monsters)
+        displaySessions.flatMap(s => s.killed_monsters || [])
           .reduce((acc: { [key: string]: number }, monster) => {
             acc[monster.name] = (acc[monster.name] || 0) + monster.count;
             return acc;
@@ -165,9 +185,9 @@ const AnalyticsPage: React.FC = () => {
 
   // Calcular estatísticas de eficiência
   const calculateEfficiencyStats = () => {
-    if (sessions.length === 0) return { bestHour: 0, worstHour: 0 };
+    if (displaySessions.length === 0) return { bestHour: 0, worstHour: 0 };
 
-    const hourlyMetrics = sessions.map(session => 
+    const hourlyMetrics = displaySessions.map(session => 
       metricType === 'xp' 
         ? session.total_xp_per_hour 
         : (session.balance / (session.duration_minutes > 0 ? session.duration_minutes : 1)) * 60
@@ -191,7 +211,7 @@ const AnalyticsPage: React.FC = () => {
   };
 
   const prepareAnalyticsSummary = (): AnalyticsSummary => {
-    if (sessions.length === 0) {
+    if (displaySessions.length === 0) {
       return {
         totalSessions: 0,
         totalXP: 0,
@@ -205,18 +225,18 @@ const AnalyticsPage: React.FC = () => {
       };
     }
 
-    const totalXP = sessions.reduce((sum, s) => sum + s.total_xp_gain, 0);
-    const totalBalance = sessions.reduce((sum, s) => sum + s.balance, 0);
-    const totalDurationMinutes = sessions.reduce((sum, s) => sum + s.duration_minutes, 0);
+    const totalXP = displaySessions.reduce((sum, s) => sum + s.total_xp_gain, 0);
+    const totalBalance = displaySessions.reduce((sum, s) => sum + s.balance, 0);
+    const totalDurationMinutes = displaySessions.reduce((sum, s) => sum + s.duration_minutes, 0);
 
-    const xpPerHourValues = sessions.map(s => s.total_xp_per_hour);
-    const averageXPPerHour = xpPerHourValues.reduce((sum, val) => sum + val, 0) / xpPerHourValues.length;
-    const bestXPPerHour = Math.max(...xpPerHourValues);
-    const worstXPPerHour = Math.min(...xpPerHourValues);
+    const xpPerHourValues = displaySessions.map(s => s.total_xp_per_hour).filter(value => isFinite(value));
+    const averageXPPerHour = xpPerHourValues.length > 0 ? xpPerHourValues.reduce((sum, val) => sum + val, 0) / xpPerHourValues.length : 0;
+    const bestXPPerHour = xpPerHourValues.length > 0 ? Math.max(...xpPerHourValues) : 0;
+    const worstXPPerHour = xpPerHourValues.length > 0 ? Math.min(...xpPerHourValues) : 0;
 
     // Most Killed Monsters
     const monsterCounts = new Map<string, number>();
-    sessions.forEach(session => {
+    displaySessions.forEach(session => {
       (session.killed_monsters || []).forEach(monster => {
         const current = monsterCounts.get(monster.name) || 0;
         monsterCounts.set(monster.name, current + monster.count);
@@ -229,10 +249,9 @@ const AnalyticsPage: React.FC = () => {
 
     // Most Valuable Items
     const itemValues = new Map<string, number>();
-    sessions.forEach(session => {
+    displaySessions.forEach(session => {
       (session.looted_items || []).forEach(item => {
         const current = itemValues.get(item.name) || 0;
-        // Ensure item.value is a number, default to 0 if not present or not a number
         const value = typeof item.value === 'number' ? item.value : 0;
         itemValues.set(item.name, current + value);
       });
@@ -243,7 +262,7 @@ const AnalyticsPage: React.FC = () => {
       .slice(0, 5);
     
     return {
-      totalSessions: sessions.length,
+      totalSessions: displaySessions.length,
       totalXP,
       totalBalance,
       averageXPPerHour: isFinite(averageXPPerHour) ? averageXPPerHour : 0,
@@ -256,9 +275,87 @@ const AnalyticsPage: React.FC = () => {
   };
 
   const handleExportPDF = () => {
-    const summary = prepareAnalyticsSummary();
-    generateAnalyticsPDF(sessions, summary);
+    const last30DaysSessions = filterSessionsByTimeRange(allRawSessions, '30d');
+    if (last30DaysSessions.length === 0) {
+      alert("Nenhuma sessão encontrada nos últimos 30 dias para gerar o PDF.");
+      return;
+    }
+    const summary = prepareAnalyticsSummaryForPDF(last30DaysSessions);
+    generateAnalyticsPDF(last30DaysSessions, summary);
   };
+
+  const prepareAnalyticsSummaryForPDF = (sessionsForPDF: Session[]): AnalyticsSummary => {
+    if (sessionsForPDF.length === 0) {
+      return {
+        totalSessions: 0,
+        totalXP: 0,
+        totalBalance: 0,
+        averageXPPerHour: 0,
+        bestXPPerHour: 0,
+        worstXPPerHour: 0,
+        totalPlayTime: '0h 0m',
+        mostKilledMonsters: [],
+        mostValuableItems: [],
+      };
+    }
+    const totalXP = sessionsForPDF.reduce((sum, s) => sum + s.total_xp_gain, 0);
+    const totalBalance = sessionsForPDF.reduce((sum, s) => sum + s.balance, 0);
+    const totalDurationMinutes = sessionsForPDF.reduce((sum, s) => sum + s.duration_minutes, 0);
+
+    const xpPerHourValues = sessionsForPDF.map(s => s.total_xp_per_hour).filter(value => isFinite(value));
+    const averageXPPerHour = xpPerHourValues.length > 0 ? xpPerHourValues.reduce((sum, val) => sum + val, 0) / xpPerHourValues.length : 0;
+    const bestXPPerHour = xpPerHourValues.length > 0 ? Math.max(...xpPerHourValues) : 0;
+    const worstXPPerHour = xpPerHourValues.length > 0 ? Math.min(...xpPerHourValues) : 0;
+
+    const monsterCounts = new Map<string, number>();
+    sessionsForPDF.forEach(session => {
+      (session.killed_monsters || []).forEach(monster => {
+        const current = monsterCounts.get(monster.name) || 0;
+        monsterCounts.set(monster.name, current + monster.count);
+      });
+    });
+    const mostKilledMonsters = Array.from(monsterCounts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    const itemValues = new Map<string, number>();
+    sessionsForPDF.forEach(session => {
+      (session.looted_items || []).forEach(item => {
+        const current = itemValues.get(item.name) || 0;
+        const value = typeof item.value === 'number' ? item.value : 0;
+        itemValues.set(item.name, current + value);
+      });
+    });
+    const mostValuableItems = Array.from(itemValues.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+
+    return {
+      totalSessions: sessionsForPDF.length,
+      totalXP,
+      totalBalance,
+      averageXPPerHour: isFinite(averageXPPerHour) ? averageXPPerHour : 0,
+      bestXPPerHour: isFinite(bestXPPerHour) ? bestXPPerHour : 0,
+      worstXPPerHour: isFinite(worstXPPerHour) ? worstXPPerHour : 0,
+      totalPlayTime: formatMinutesToHMS(totalDurationMinutes),
+      mostKilledMonsters,
+      mostValuableItems,
+    };
+  };
+
+  if (isLoading) {
+    return <PageContainer title="Análises"><Typography>Carregando análises...</Typography></PageContainer>;
+  }
+
+  if (error) {
+    return <PageContainer title="Análises"><Typography color="error">{error}</Typography></PageContainer>;
+  }
+
+  if (allRawSessions.length === 0 && !isLoading) {
+    return <PageContainer title="Análises"><Typography>Nenhuma sessão encontrada. Importe algumas sessões para ver as análises.</Typography></PageContainer>;
+  }
 
   return (
     <PageContainer 
@@ -390,7 +487,7 @@ const AnalyticsPage: React.FC = () => {
                     datasets: [{
                       label: 'Sessões',
                       data: Array(6).fill(0).map((_, i) => 
-                        sessions.filter(s => {
+                        displaySessions.filter(s => {
                           const hour = dayjs(s.start_datetime).hour();
                           return hour >= i * 4 && hour < (i + 1) * 4;
                         }).length

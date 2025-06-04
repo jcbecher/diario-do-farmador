@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -28,72 +28,47 @@ import { Session } from '../types';
 import { sessionService } from '../services/sessionService';
 import PageContainer from '../components/PageContainer';
 
-// Dados mockados para exemplo
-const mockSessions: Session[] = [
-  {
-    id: '1',
-    user_id: '1',
-    start_datetime: new Date('2024-03-20T10:00:00'),
-    end_datetime: new Date('2024-03-20T12:00:00'),
-    duration_minutes: 120,
-    raw_xp_gain: 150000,
-    total_xp_gain: 150000,
-    raw_xp_per_hour: 75000,
-    total_xp_per_hour: 75000,
-    loot_value: 50000,
-    supplies_value: 20000,
-    balance: 30000,
-    damage_dealt: 100000,
-    damage_per_hour: 50000,
-    healing_done: 50000,
-    healing_per_hour: 25000,
-    created_at: new Date('2024-03-20T12:00:00'),
-    killed_monsters: [],
-    looted_items: []
-  },
-  {
-    id: '2',
-    user_id: '1',
-    start_datetime: new Date('2024-03-20T15:00:00'),
-    end_datetime: new Date('2024-03-20T17:00:00'),
-    duration_minutes: 120,
-    raw_xp_gain: 200000,
-    total_xp_gain: 200000,
-    raw_xp_per_hour: 100000,
-    total_xp_per_hour: 100000,
-    loot_value: 70000,
-    supplies_value: 25000,
-    balance: 45000,
-    damage_dealt: 120000,
-    damage_per_hour: 60000,
-    healing_done: 60000,
-    healing_per_hour: 30000,
-    created_at: new Date('2024-03-20T17:00:00'),
-    killed_monsters: [],
-    looted_items: []
-  }
-];
-
 const SessionListPage: React.FC = () => {
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [allSessions, setAllSessions] = useState<Session[]>([]);
   const [selectedDaySessions, setSelectedDaySessions] = useState<Session[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Carregar todas as sessões
-    const loadedSessions = sessionService.getAllSessions();
-    setSessions(loadedSessions);
+  const fetchAllSessions = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const loadedSessions = await sessionService.getAllSessions();
+      setAllSessions(loadedSessions);
+    } catch (err) {
+      console.error("Failed to load sessions:", err);
+      setError("Falha ao carregar as sessões.");
+    }
+    setIsLoading(false);
   }, []);
 
   useEffect(() => {
-    // Filtra as sessões do dia selecionado
-    const daySessions = sessionService.getSessionsByDate(selectedDate.toDate());
-    setSelectedDaySessions(daySessions);
-  }, [selectedDate, sessions]);
+    fetchAllSessions();
+  }, [fetchAllSessions]);
+
+  const fetchSessionsForSelectedDate = useCallback(async () => {
+    if (!selectedDate) return;
+    try {
+      const daySessions = await sessionService.getSessionsByDate(selectedDate.toDate());
+      setSelectedDaySessions(daySessions);
+    } catch (err) {
+      console.error("Failed to load sessions for date:", err);
+    }
+  }, [selectedDate]);
+
+  useEffect(() => {
+    fetchSessionsForSelectedDate();
+  }, [selectedDate, allSessions, fetchSessionsForSelectedDate]);
 
   const handleDateChange = (date: Dayjs | null) => {
     if (date) {
@@ -107,31 +82,38 @@ const SessionListPage: React.FC = () => {
   };
 
   const handleDeleteClick = (e: React.MouseEvent, sessionId: string) => {
-    e.stopPropagation(); // Previne a navegação para a página de detalhes
+    e.stopPropagation();
     setSessionToDelete(sessionId);
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (sessionToDelete) {
-      sessionService.deleteSession(sessionToDelete);
-      // Atualiza a lista de sessões
-      const updatedSessions = sessionService.getAllSessions();
-      setSessions(updatedSessions);
+      setIsLoading(true);
+      try {
+        const success = await sessionService.deleteSession(sessionToDelete);
+        if (success) {
+          await fetchAllSessions();
+        } else {
+          setError("Falha ao deletar a sessão.");
+        }
+      } catch (err) {
+        console.error("Error deleting session:", err);
+        setError("Erro ao deletar a sessão.");
+      }
       setDeleteDialogOpen(false);
       setSessionToDelete(null);
+      setIsLoading(false);
     }
   };
 
-  // Função para verificar se um dia tem sessões
-  const hasSessionsOnDay = (date: Dayjs) => {
-    return sessions.some(session => {
+  const hasSessionsOnDay = useCallback((date: Dayjs) => {
+    return allSessions.some(session => {
       const sessionDate = dayjs(session.start_datetime);
       return sessionDate.isSame(date, 'day');
     });
-  };
+  }, [allSessions]);
 
-  // Add function to get most killed monster
   const getMostKilledMonster = (session: Session) => {
     if (!session.killed_monsters || session.killed_monsters.length === 0) {
       return null;
@@ -184,6 +166,8 @@ const SessionListPage: React.FC = () => {
                           '&:hover': {
                             backgroundColor: 'action.selected',
                           },
+                        }),
+                        ...(dayjs(props.day).isSame(selectedDate, 'day') && !hasSessionsOnDay(props.day) && {
                         }),
                       },
                     }),
@@ -239,6 +223,8 @@ const SessionListPage: React.FC = () => {
           </Tooltip>
         </DialogTitle>
         <DialogContent>
+          {isLoading && <Typography>Carregando...</Typography>}
+          {error && <Typography color="error">{error}</Typography>}
           <List sx={{ pt: 0 }}>
             {selectedDaySessions.length > 0 ? (
               selectedDaySessions.map((session) => (
