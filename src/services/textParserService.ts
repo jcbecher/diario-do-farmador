@@ -64,6 +64,7 @@ class StandardFormatParser implements ParserStrategy {
   parse(text: string): SessionDataExtract {
     this.numberFormat = this.detectNumberFormat(text);
     console.log(`[TextParser] Formato numérico detectado: ${this.numberFormat}`);
+    console.log('[TextParser] Texto completo recebido para parse:', JSON.stringify(text));
     const result: SessionDataExtract = {};
     
     let dateMatch = text.match(/From (.*?) to (.*?) Session:/);
@@ -105,9 +106,9 @@ class StandardFormatParser implements ParserStrategy {
         
     const lootMatch = text.match(/Loot: ([\d.,]+)[\s\S]*?Supplies: ([\d.,]+)[\s\S]*?Balance: ([\d.,]+)/m);
     if (lootMatch && lootMatch[1] && lootMatch[2] && lootMatch[3]) {
-      result.loot_value = this.parseNumber(lootMatch[1]);
-      result.supplies_value = this.parseNumber(lootMatch[2]);
-      result.balance = this.parseNumber(lootMatch[3]);
+      result.loot_value = this.parseCurrencyNumber(lootMatch[1]);
+      result.supplies_value = this.parseCurrencyNumber(lootMatch[2]);
+      result.balance = this.parseCurrencyNumber(lootMatch[3]);
     }
     
     const damageMatch = text.match(/Damage: ([\d.,]+)[\s\S]*?Damage\/h: ([\d.,]+)/m);
@@ -137,33 +138,43 @@ class StandardFormatParser implements ParserStrategy {
       'Healing/h:'
     ];
 
-    // For Killed Monsters, stop at Looted Items section, other common headers at line start, or end of string.
-    // Temporarily removing blank line stop condition for wider capture.
-    const kmLookaheadStopPatterns = [
-      ...commonStopKeywords.map(k => `(?:^${k.replace(/[.*+?^${}()|[\\]]/g, '\\$&')})`),
-      '(?:^(?:Looted Items|Items Looted|Itens Coletados))'
-    ].join('|');
-    // Switching to greedy match for the main content capture
-    const killedMonstersRegex = new RegExp(`(?:Killed Monsters|Monsters Killed|Monstros Mortos):\\s*\\n?([\\s\\S]*)(?=${kmLookaheadStopPatterns}|$)`, 'im');
+    // For Killed Monsters, explicitly stop at Looted Items section or end of string.
+    // Using non-greedy match for content ([\s\S]*?)
+    // Lookahead is now specifically for a newline followed by "Looted Items:" variations.
+    const killedMonstersRegex = new RegExp(`(?:Killed Monsters|Monsters Killed|Monstros Mortos):\\s*\\n?([\\s\\S]*?)(?=\\n(?:Looted Items|Items Looted|Itens Coletados):)`, 'im');
     const killedMonstersMatch = text.match(killedMonstersRegex);
-    console.log('[TextParser] killedMonstersRegex used (greedy, no blank line stop):', killedMonstersRegex.source);
-    console.log('[TextParser] killedMonstersMatch (greedy, no blank line stop):', killedMonstersMatch);
+    console.log('[TextParser] killedMonstersRegex used (specific \\nLooted Items: lookahead):', killedMonstersRegex.source);
+    console.log('[TextParser] killedMonstersMatch (specific \\nLooted Items: lookahead):', killedMonstersMatch);
     if (killedMonstersMatch && killedMonstersMatch[1]) {
-      console.log('[TextParser] Bloco de texto para parseKilledMonsters (raw - greedy, no blank line stop):', JSON.stringify(killedMonstersMatch[1]));
+      console.log('[TextParser] Bloco de texto para parseKilledMonsters (raw - specific \\nLooted Items: lookahead):', JSON.stringify(killedMonstersMatch[1]));
       result.killed_monsters = this.parseKilledMonsters(killedMonstersMatch[1].trim());
     } else {
-      console.log('[TextParser] Nenhum match para Killed Monsters com (greedy, no blank line stop).');
-      result.killed_monsters = [];
+      console.log('[TextParser] Nenhum match para Killed Monsters com (specific \\nLooted Items: lookahead).');
+      // Fallback or alternative if the primary one fails due to missing Looted Items section
+      const kmFallbackLookahead = [
+        ...commonStopKeywords.map(k => `(?:^${k.replace(/[.*+?^${}()|[\\]]/g, '\\$&')})`),
+        '\\n\\s*\\n'
+      ].join('|');
+      const killedMonstersFallbackRegex = new RegExp(`(?:Killed Monsters|Monsters Killed|Monstros Mortos):\\s*\\n?([\\s\\S]*?)(?=${kmFallbackLookahead}|$)`, 'im');
+      const killedMonstersFallbackMatch = text.match(killedMonstersFallbackRegex);
+      console.log('[TextParser] killedMonstersFallbackRegex used:', killedMonstersFallbackRegex.source);
+      console.log('[TextParser] killedMonstersFallbackMatch:', killedMonstersFallbackMatch);
+      if (killedMonstersFallbackMatch && killedMonstersFallbackMatch[1]) {
+        console.log('[TextParser] Bloco de texto para parseKilledMonsters (raw - fallback):', JSON.stringify(killedMonstersFallbackMatch[1]));
+        result.killed_monsters = this.parseKilledMonsters(killedMonstersFallbackMatch[1].trim());
+      } else {
+        console.log('[TextParser] Nenhum match para Killed Monsters com fallback.');
+        result.killed_monsters = [];
+      }
     }
     
-    // For Looted Items, stop at other common headers at line start, or end of string.
-    // Temporarily removing blank line stop condition for wider capture.
+    // Looted Items regex: Using a more comprehensive lookahead (commonStopKeywords) and greedy match, as it seemed to work before.
     const liLookaheadStopKeywords = commonStopKeywords.filter(k => !k.toLowerCase().startsWith('loot'));
     const liLookaheadStopPatterns = [
       ...liLookaheadStopKeywords.map(k => `(?:^${k.replace(/[.*+?^${}()|[\\]]/g, '\\$&')})`)
+      // No blank line stop for items, similar to the last greedy version that worked for items
     ].join('|');
-    // Switching to greedy match for the main content capture
-    const lootedItemsRegex = new RegExp(`(?:Looted Items|Items Looted|Itens Coletados):\\s*\\n?([\\s\\S]*)(?=${liLookaheadStopPatterns}|$)`, 'im');
+    const lootedItemsRegex = new RegExp(`(?:Looted Items|Items Looted|Itens Coletados):\\s*\\n?([\\s\\S]*)(?=(?:${liLookaheadStopPatterns})|$)`, 'im');
     const lootedItemsMatch = text.match(lootedItemsRegex);
     console.log('[TextParser] lootedItemsRegex used (greedy, no blank line stop):', lootedItemsRegex.source);
     console.log('[TextParser] lootedItemsMatch (greedy, no blank line stop):', lootedItemsMatch);
@@ -203,7 +214,7 @@ class StandardFormatParser implements ParserStrategy {
                 cleanedStr = cleanedStr.replace(/,/g, '.');
             }
         } else if (hasComma) { 
-            if (cleanedStr.split(',').length - 1 === 1 && cleanedStr.match(/,\d{1,2}$/)) {
+            if (cleanedStr.split(',').length -1 === 1 && cleanedStr.match(/,\d{1,3}$/)) {
                  cleanedStr = cleanedStr.replace(/,/g, '.'); 
             } else { 
                  cleanedStr = cleanedStr.replace(/,/g, ''); 
@@ -213,13 +224,16 @@ class StandardFormatParser implements ParserStrategy {
             if (dotParts.length > 2) {
                 cleanedStr = dotParts.join('');
             } else if (dotParts.length === 2) { 
-                if (dotParts[1].length === 3 && dotParts[0].length > 0) { 
+                if (dotParts[1].length === 3 && dotParts[0].length > 3) {
                      cleanedStr = dotParts.join('');
+                } else if (dotParts[1].length !== 3 && dotParts[0].length > 0 && dotParts[1].length > 0) {
+                } else if (dotParts[1].length === 3 && dotParts[0].length <=3 && dotParts[0].length > 0) {
                 }
             }
         }
     }
     
+    console.log(`[TextParser] String original: '${str}', Formato: ${this.numberFormat}, String Limpa para parseFloat: '${cleanedStr}'`);
     const num = parseFloat(cleanedStr);
     if (isNaN(num)) {
         console.warn(`[TextParser] Falha ao converter string '${str}' (limpa: '${cleanedStr}') para número. Formato detectado: ${this.numberFormat}`);
@@ -289,6 +303,49 @@ class StandardFormatParser implements ParserStrategy {
     }
     console.log('[TextParser] Itens parseados:', result);
     return result;
+  }
+
+  // Nova função específica para parsear valores monetários (Loot, Supplies, Balance)
+  private parseCurrencyNumber(str: string): number {
+    let cleanedStr = str.trim();
+    // Substitui tanto . quanto , por um placeholder se ambos existirem, para depois decidir qual era o decimal.
+    // Esta abordagem é mais simples: assume que o último . ou , é o separador decimal se houver ambiguidade.
+    // Remove todos os pontos (tratados como separadores de milhar)
+    cleanedStr = cleanedStr.replace(/\./g, '');
+    // Substitui a última vírgula (se existir) por um ponto (para ser o decimal)
+    cleanedStr = cleanedStr.replace(/,/, '.'); 
+    // Se a intenção original do usuário era "123.456" significando 123 (decimal) e não 123456 (milhar),
+    // a lógica acima converteria "123.456" -> "123456" -> "123456" (sem vírgula para substituir).
+    // Para o caso específico de "XXX.YYY" onde YYY são 3 dígitos, e o usuário quer que seja decimal:
+    // Re-avaliamos a string original:
+    const originalTrimmed = str.trim();
+    if (originalTrimmed.match(/^\d{1,3}\.\d{3}$/) && !originalTrimmed.includes(',')) {
+      // Ex: "123.456" ou "374.617" - Tratar o ponto como decimal diretamente.
+      cleanedStr = originalTrimmed; 
+    } else if (originalTrimmed.match(/^\d{1,3},\d{3}$/) && !originalTrimmed.includes('.')) {
+      // Ex: "123,456" ou "374,617" - Converter vírgula para ponto.
+      cleanedStr = originalTrimmed.replace(',', '.');
+    }
+    // Se ainda tiver vírgulas após a tentativa de tratar o formato XXX.YYY ou XXX,YYY
+    // (pode acontecer se o formato for mais complexo como 1.234,56 ou 1,234.56)
+    // vamos limpar os separadores de milhar restantes e manter o último como decimal.
+    if (cleanedStr.includes(',') && cleanedStr.includes('.')) {
+        if (cleanedStr.lastIndexOf('.') > cleanedStr.lastIndexOf(',')) { // Formato: 1.234,56 -> 1234.56
+            cleanedStr = cleanedStr.replace(/,/g, '.');
+            const parts = cleanedStr.split('.');
+            const last = parts.pop();
+            cleanedStr = parts.join('') + '.' + last;
+        } else { // Formato: 1,234.56 -> 1234.56
+            cleanedStr = cleanedStr.replace(/\./g, '');
+            cleanedStr = cleanedStr.replace(/,/, '.');
+        }
+    } else if (cleanedStr.includes(',')) { // Apenas vírgulas restantes
+        cleanedStr = cleanedStr.replace(/,/, '.'); // Assume a primeira (ou única) como decimal
+    } // Se apenas pontos restantes, já está ok para parseFloat
+
+    console.log(`[TextParser] Currency Original: '${str}', Limpa para parseFloat: '${cleanedStr}'`);
+    const num = parseFloat(cleanedStr);
+    return isNaN(num) ? 0 : num;
   }
 }
 

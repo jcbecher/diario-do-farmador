@@ -51,12 +51,11 @@ const DashboardPage: React.FC = () => {
     total_balance: 0,
     total_monsters_killed: 0,
     most_killed_monsters: [],
-    // Remover a linha abaixo
-    // most_valuable_items: [],
   });
 
   useEffect(() => {
     const loadedSessions = sessionService.getAllSessions();
+    console.log('[DashboardPage] Loaded sessions:', JSON.parse(JSON.stringify(loadedSessions)));
     setSessions(loadedSessions);
 
     // Calcular estatísticas
@@ -68,18 +67,21 @@ const DashboardPage: React.FC = () => {
 
       // Contagem de monstros
       const monsterCounts = new Map<string, number>();
-      loadedSessions.forEach(session => {
+      loadedSessions.forEach((session, sessionIndex) => {
+        console.log(`[DashboardPage] Session ${sessionIndex} killed_monsters:`, JSON.parse(JSON.stringify(session.killed_monsters)));
         session.killed_monsters.forEach(monster => {
           const current = monsterCounts.get(monster.name) || 0;
           monsterCounts.set(monster.name, current + monster.count);
         });
       });
+      console.log('[DashboardPage] Monster counts map:', Object.fromEntries(monsterCounts));
 
       // Ordenar monstros por quantidade
       const sortedMonsters = Array.from(monsterCounts.entries())
         .map(([name, count]) => ({ name, count }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 5);
+      console.log('[DashboardPage] Sorted monsters (top 5):', sortedMonsters);
 
       // Contagem de items
       const itemCounts = new Map<string, { count: number; value: number }>();
@@ -109,8 +111,6 @@ const DashboardPage: React.FC = () => {
         total_balance: totalLoot - totalSupplies,
         total_monsters_killed: Array.from(monsterCounts.values()).reduce((a, b) => a + b, 0),
         most_killed_monsters: sortedMonsters,
-        // Remover a linha abaixo
-        // most_valuable_items: sortedItems as LootedItem[],
       });
     }
   }, []);

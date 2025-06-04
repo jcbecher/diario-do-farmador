@@ -61,6 +61,4 @@ export interface SessionStats {
   total_balance: number;
   total_monsters_killed: number;
   most_killed_monsters: { name: string; count: number }[];
-  // Remover a linha abaixo
-  // most_valuable_items: LootedItem[];
 }

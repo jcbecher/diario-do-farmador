@@ -165,18 +165,19 @@ const AnalyticsPage: React.FC = () => {
 
   // Calcular estatísticas de eficiência
   const calculateEfficiencyStats = () => {
-    if (sessions.length === 0) return { bestHour: 0, worstHour: 0, averageHour: 0 };
+    if (sessions.length === 0) return { bestHour: 0, worstHour: 0 };
 
     const hourlyMetrics = sessions.map(session => 
       metricType === 'xp' 
         ? session.total_xp_per_hour 
-        : (session.balance / session.duration_minutes) * 60
-    );
+        : (session.balance / (session.duration_minutes > 0 ? session.duration_minutes : 1)) * 60
+    ).filter(value => isFinite(value));
+
+    if (hourlyMetrics.length === 0) return { bestHour: 0, worstHour: 0 };
 
     return {
       bestHour: Math.max(...hourlyMetrics),
       worstHour: Math.min(...hourlyMetrics),
-      averageHour: hourlyMetrics.reduce((a, b) => a + b, 0) / hourlyMetrics.length,
     };
   };
 
@@ -301,40 +302,27 @@ const AnalyticsPage: React.FC = () => {
 
       <Grid container spacing={4}>
         {/* Estatísticas de Eficiência */}
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Melhor {metricType === 'xp' ? 'XP/h' : 'Lucro/h'}
+                Maior {metricType === 'xp' ? 'XP/h' : 'Lucro/h'}
               </Typography>
               <Typography variant="h4">
-                {efficiencyStats.bestHour.toLocaleString()}
+                {efficiencyStats.bestHour.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
 
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Média {metricType === 'xp' ? 'XP/h' : 'Lucro/h'}
+                Menor {metricType === 'xp' ? 'XP/h' : 'Lucro/h'}
               </Typography>
               <Typography variant="h4">
-                {efficiencyStats.averageHour.toLocaleString()}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Pior {metricType === 'xp' ? 'XP/h' : 'Lucro/h'}
-              </Typography>
-              <Typography variant="h4">
-                {efficiencyStats.worstHour.toLocaleString()}
+                {efficiencyStats.worstHour.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </Typography>
             </CardContent>
           </Card>
